@@ -383,17 +383,17 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
           {/* ── Page Title ── */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
             <p className="text-sm text-gray-500">AI-Powered Dhivehi News Engine</p>
           </div>
 
           {/* ── Auto-Scrape Status Bar ── */}
           {settings.autoScrapeInterval !== "disabled" && (
-            <div className="mb-6 flex items-center justify-between gap-4 px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm">
-              <div className="flex items-center gap-3 text-xs text-gray-500">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                 <Clock className="w-3.5 h-3.5" />
                 <span>Auto-scrape: every {settings.autoScrapeInterval} min</span>
                 {lastAutoScrape && (
@@ -411,7 +411,7 @@ export default function Dashboard() {
               <button
                 onClick={autoScrapeAll}
                 disabled={autoScraping}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5D87FF] hover:bg-[#4A70E0] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#5D87FF] hover:bg-[#4A70E0] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
               >
                 <RefreshCw className={`w-3 h-3 ${autoScraping ? "animate-spin" : ""}`} />
                 Scrape All Now
@@ -423,9 +423,9 @@ export default function Dashboard() {
             {/* ════════════════════════════════════════════════ */}
             {/* LEFT COLUMN: Input System + AI Summary          */}
             {/* ════════════════════════════════════════════════ */}
-            <div className="lg:col-span-1 space-y-6">
+            <div className="lg:col-span-1 space-y-4 sm:space-y-6">
               {/* ── Tri-Mode Input Tabs ── */}
-              <GlassCard className="p-6">
+              <GlassCard className="p-4 sm:p-6">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
                   News Discovery
                 </h2>
@@ -595,10 +595,10 @@ export default function Dashboard() {
             {/* ════════════════════════════════════════════════ */}
             {/* RIGHT COLUMN: Headlines + AI Output             */}
             {/* ════════════════════════════════════════════════ */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* ── Headlines List ── */}
               {(visibleHeadlines.length > 0 || headlinesLoading || headlinesError) && (
-                <GlassCard className="p-6">
+                <GlassCard className="p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
                       Discovered Headlines
@@ -640,23 +640,15 @@ export default function Dashboard() {
                     {visibleHeadlines.map((h, i) => (
                       <div
                         key={`${h.link}-${i}`}
-                        className={`flex items-center justify-between gap-3 p-3 border rounded-xl transition-all group ${
+                        className={`p-3 border rounded-xl transition-all group ${
                           h.alreadyProcessed
                             ? "bg-gray-50 border-gray-100 opacity-60"
                             : "bg-white hover:bg-gray-50 border-gray-100 hover:border-gray-200"
                         }`}
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm text-gray-700 truncate">{h.title}</p>
-                            {h.alreadyProcessed && (
-                              <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-600">
-                                <CheckCircle2 className="w-2.5 h-2.5" />
-                                Processed
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
+                        <div className="mb-2">
+                          <p className="text-sm text-gray-700 leading-snug">{h.title}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             {h.sourceLabel && (
                               <span className="text-[10px] text-[#5D87FF]">{h.sourceLabel}</span>
                             )}
@@ -665,18 +657,15 @@ export default function Dashboard() {
                                 {new Date(h.pubDate).toLocaleDateString()}
                               </span>
                             )}
+                            {h.alreadyProcessed && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-600">
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                Processed
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <a
-                            href={h.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                            title="Open original"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => processArticle(h.link)}
                             disabled={processing}
@@ -689,6 +678,15 @@ export default function Dashboard() {
                             )}
                             Process
                           </button>
+                          <a
+                            href={h.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                            title="Open original"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
                         </div>
                       </div>
                     ))}
