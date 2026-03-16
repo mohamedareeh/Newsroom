@@ -1,5 +1,5 @@
 // ─── Root Layout ───────────────────────────────────────────
-// Imports global styles and the Thaana font for Dhivehi output.
+// Imports global styles and the Faruma/Thaana fonts for Dhivehi output.
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -18,15 +18,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
-        {/* Load Noto Sans Thaana for Dhivehi text rendering */}
+        {/* Noto Sans Thaana as fallback for Dhivehi text */}
         <link
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.className} antialiased bg-[#f5f7fa] text-gray-900`}>
         {children}
       </body>
     </html>

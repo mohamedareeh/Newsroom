@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
+  LayoutDashboard,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import WordPressPublisher from "@/components/WordPressPublisher";
@@ -100,7 +101,6 @@ export default function Dashboard() {
       const seen = new Set(existing.map((h) => h.link));
       const newOnes = incoming.filter((h) => !seen.has(h.link));
       const merged = [...existing, ...newOnes];
-      // If auto-exclude is on, optionally sort processed to bottom
       if (settings.autoExcludeProcessed) {
         merged.sort((a, b) => {
           if (a.alreadyProcessed && !b.alreadyProcessed) return 1;
@@ -120,7 +120,6 @@ export default function Dashboard() {
 
     const fetches: Promise<Headline[]>[] = [];
 
-    // RSS feeds
     for (const source of enabledRssFeeds) {
       if (!source.rssUrl) continue;
       fetches.push(
@@ -136,7 +135,6 @@ export default function Dashboard() {
       );
     }
 
-    // Scrape sources
     for (const source of enabledScrapeSources) {
       fetches.push(
         fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`)
@@ -174,8 +172,6 @@ export default function Dashboard() {
     if (settings.autoScrapeInterval === "disabled" || !loaded) return;
 
     const ms = parseInt(settings.autoScrapeInterval) * 60 * 1000;
-
-    // Initial scrape on mount
     autoScrapeAll();
 
     intervalRef.current = setInterval(() => {
@@ -253,6 +249,7 @@ export default function Dashboard() {
             tone: settings.tone,
             length: settings.length,
             geminiApiKey: settings.geminiApiKey || undefined,
+            promptTemplate: settings.promptTemplate || undefined,
           }),
         });
         const data = await res.json();
@@ -265,7 +262,7 @@ export default function Dashboard() {
         setProcessingUrl("");
       }
     },
-    [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey]
+    [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.promptTemplate]
   );
 
   // ── Copy result to clipboard ──
@@ -283,11 +280,23 @@ export default function Dashboard() {
     router.refresh();
   }, [router]);
 
+  // ── Split AI output into headline + body ──
+  const splitOutput = useMemo(() => {
+    if (!result?.rewrittenText) return null;
+    const text = result.rewrittenText.trim();
+    const firstNewline = text.indexOf("\n");
+    if (firstNewline === -1) return { headline: text, body: "" };
+    return {
+      headline: text.slice(0, firstNewline).trim(),
+      body: text.slice(firstNewline + 1).trim(),
+    };
+  }, [result]);
+
   // ── Loading state ──
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900">
-        <Loader2 className="w-8 h-8 text-teal-400 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f7fa]">
+        <Loader2 className="w-8 h-8 text-[#5D87FF] animate-spin" />
       </div>
     );
   }
@@ -305,466 +314,507 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900 text-white">
-      {/* ── Ambient Background Orbs ── */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-sky-500/8 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-0 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen flex bg-[#f5f7fa]">
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* SIDEBAR                                                 */}
+      {/* ════════════════════════════════════════════════════════ */}
+      <aside className="hidden lg:flex lg:flex-col w-64 bg-[#2A3447] text-white min-h-screen sticky top-0">
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
+          <div className="p-2 bg-[#5D87FF]/20 rounded-xl">
+            <Newspaper className="w-6 h-6 text-[#5D87FF]" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold tracking-tight">Creative Network</h1>
+            <p className="text-[10px] text-white/40">News Desk</p>
+          </div>
+        </div>
 
-      {/* ── Main Content ── */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-10">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-teal-500/20 rounded-2xl border border-teal-400/30">
-              <Newspaper className="w-7 h-7 text-teal-300" />
+        {/* Nav */}
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          <Link
+            href="/"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[#5D87FF]/15 text-[#5D87FF] text-sm font-medium"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
+          </Link>
+          <Link
+            href="/settings"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/60 hover:bg-white/5 hover:text-white/80 text-sm transition-colors"
+          >
+            <Settings2 className="w-4 h-4" />
+            Settings
+          </Link>
+        </nav>
+
+        {/* Logout */}
+        <div className="px-4 py-4 border-t border-white/10">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/5 hover:text-white/70 text-sm transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </div>
+      </aside>
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* MAIN CONTENT                                            */}
+      {/* ════════════════════════════════════════════════════════ */}
+      <main className="flex-1 min-w-0">
+        {/* Mobile header */}
+        <div className="lg:hidden flex items-center justify-between px-4 py-4 bg-white border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-50 rounded-xl">
+              <Newspaper className="w-5 h-5 text-[#5D87FF]" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                Creative Network{" "}
-                <span className="text-teal-300">News Desk</span>
-              </h1>
-              <p className="text-sm text-white/40">
-                AI-Powered Dhivehi News Engine
-              </p>
-            </div>
+            <h1 className="text-sm font-bold text-gray-900">Creative Network</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href="/settings"
-              className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
-              title="Settings"
-            >
-              <Settings2 className="w-4 h-4 text-white/60" />
+            <Link href="/settings" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+              <Settings2 className="w-4 h-4 text-gray-500" />
             </Link>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white/60 hover:text-white/80 text-sm"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
+            <button onClick={handleLogout} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+              <LogOut className="w-4 h-4 text-gray-500" />
             </button>
           </div>
         </div>
 
-        {/* ── Auto-Scrape Status Bar ── */}
-        {settings.autoScrapeInterval !== "disabled" && (
-          <div className="mb-6 flex items-center justify-between gap-4 px-4 py-3 bg-white/5 border border-white/10 rounded-xl">
-            <div className="flex items-center gap-3 text-xs text-white/50">
-              <Clock className="w-3.5 h-3.5" />
-              <span>
-                Auto-scrape: every {settings.autoScrapeInterval} min
-              </span>
-              {lastAutoScrape && (
-                <span className="text-white/30">
-                  Last: {lastAutoScrape.toLocaleTimeString()}
-                </span>
-              )}
-              {autoScraping && (
-                <span className="flex items-center gap-1.5 text-teal-400">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Scraping...
-                </span>
-              )}
-            </div>
-            <button
-              onClick={autoScrapeAll}
-              disabled={autoScraping}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-500/15 hover:bg-teal-500/25 border border-teal-400/20 text-teal-300 text-xs font-medium rounded-lg transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3 h-3 ${autoScraping ? "animate-spin" : ""}`} />
-              Scrape All Now
-            </button>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* ── Page Title ── */}
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+            <p className="text-sm text-gray-500">AI-Powered Dhivehi News Engine</p>
           </div>
-        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ════════════════════════════════════════════════ */}
-          {/* LEFT COLUMN: Input System + AI Summary          */}
-          {/* ════════════════════════════════════════════════ */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* ── Tri-Mode Input Tabs ── */}
-            <GlassCard className="p-6">
-              <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">
-                News Discovery
-              </h2>
-
-              {/* Tab buttons */}
-              <div className="flex gap-2 mb-5">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border ${
-                      activeTab === tab.id
-                        ? "tab-active text-white"
-                        : "bg-white/5 border-transparent text-white/50 hover:text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* ── RSS Radar Tab ── */}
-              {activeTab === "rss" && (
-                <div className="space-y-3">
-                  {enabledRssFeeds.length === 0 ? (
-                    <p className="text-sm text-white/40 text-center py-4">
-                      No RSS feeds enabled.{" "}
-                      <Link href="/settings" className="text-teal-400 hover:text-teal-300">
-                        Enable in Settings
-                      </Link>
-                    </p>
-                  ) : (
-                    <>
-                      <div className="relative">
-                        <select
-                          value={selectedFeed || enabledRssFeeds[0]?.rssUrl || ""}
-                          onChange={(e) => setSelectedFeed(e.target.value)}
-                          className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/90 focus:outline-none focus:border-teal-400/50 transition-all cursor-pointer"
-                        >
-                          {enabledRssFeeds.map((source) => (
-                            <option key={source.id} value={source.rssUrl} className="bg-slate-800">
-                              {source.label}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                      </div>
-                      <button
-                        onClick={fetchRSS}
-                        disabled={headlinesLoading}
-                        className="w-full flex items-center justify-center gap-2 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-400/30 text-teal-200 font-medium py-3 rounded-xl transition-all disabled:opacity-50"
-                      >
-                        {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
-                        Fetch Headlines
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* ── Direct Scrape Tab ── */}
-              {activeTab === "scrape" && (
-                <div className="space-y-3">
-                  {enabledScrapeSources.length === 0 ? (
-                    <p className="text-sm text-white/40 text-center py-4">
-                      No scrape sources enabled.{" "}
-                      <Link href="/settings" className="text-teal-400 hover:text-teal-300">
-                        Enable in Settings
-                      </Link>
-                    </p>
-                  ) : (
-                    <>
-                      <div className="relative">
-                        <select
-                          value={selectedScrapeSource || enabledScrapeSources[0]?.scrapeUrl || ""}
-                          onChange={(e) => setSelectedScrapeSource(e.target.value)}
-                          className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/90 focus:outline-none focus:border-teal-400/50 transition-all cursor-pointer"
-                        >
-                          {enabledScrapeSources.map((source) => (
-                            <option key={source.id} value={source.scrapeUrl} className="bg-slate-800">
-                              {source.label}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                      </div>
-                      <button
-                        onClick={scrapeHomepage}
-                        disabled={headlinesLoading}
-                        className="w-full flex items-center justify-center gap-2 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-400/30 text-teal-200 font-medium py-3 rounded-xl transition-all disabled:opacity-50"
-                      >
-                        {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-                        Scrape Homepage
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* ── Manual Link Tab ── */}
-              {activeTab === "manual" && (
-                <div className="space-y-3">
-                  <input
-                    type="url"
-                    value={manualUrl}
-                    onChange={(e) => setManualUrl(e.target.value)}
-                    placeholder="Paste article URL here..."
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/90 placeholder:text-white/30 focus:outline-none focus:border-teal-400/50 transition-all"
-                  />
-                  <button
-                    onClick={() => manualUrl.trim() && processArticle(manualUrl)}
-                    disabled={processing || !manualUrl.trim()}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-500/30 to-sky-500/30 hover:from-teal-500/40 hover:to-sky-500/40 border border-teal-400/30 text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
-                  >
-                    {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    Process Article
-                  </button>
-                </div>
-              )}
-
-              {/* ── Scrape All Now button (when auto-scrape is disabled) ── */}
-              {settings.autoScrapeInterval === "disabled" && (
-                <button
-                  onClick={autoScrapeAll}
-                  disabled={autoScraping}
-                  className="w-full mt-4 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 font-medium py-2.5 rounded-xl transition-all disabled:opacity-50 text-sm"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${autoScraping ? "animate-spin" : ""}`} />
-                  Scrape All Sources
-                </button>
-              )}
-            </GlassCard>
-
-            {/* ── Current AI Settings Summary ── */}
-            <GlassCard className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wider">
-                    AI Config
-                  </h2>
-                </div>
-                <Link href="/settings" className="text-xs text-teal-400 hover:text-teal-300 transition-colors">
-                  Change
-                </Link>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs text-white/50">
-                  {settings.paraphrasingLevel === "heavy" ? "Heavy Rewrite" : "Light Touch"}
-                </span>
-                <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs text-white/50 capitalize">
-                  {settings.tone}
-                </span>
-                <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs text-white/50">
-                  {settings.length === "match" ? "Full Length" : "Summary"}
-                </span>
-                {settings.geminiApiKey && (
-                  <span className="px-2.5 py-1 bg-green-500/10 border border-green-500/20 rounded-lg text-xs text-green-400">
-                    API Key Set
+          {/* ── Auto-Scrape Status Bar ── */}
+          {settings.autoScrapeInterval !== "disabled" && (
+            <div className="mb-6 flex items-center justify-between gap-4 px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+              <div className="flex items-center gap-3 text-xs text-gray-500">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Auto-scrape: every {settings.autoScrapeInterval} min</span>
+                {lastAutoScrape && (
+                  <span className="text-gray-400">
+                    Last: {lastAutoScrape.toLocaleTimeString()}
+                  </span>
+                )}
+                {autoScraping && (
+                  <span className="flex items-center gap-1.5 text-[#5D87FF]">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Scraping...
                   </span>
                 )}
               </div>
-            </GlassCard>
-          </div>
+              <button
+                onClick={autoScrapeAll}
+                disabled={autoScraping}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5D87FF] hover:bg-[#4A70E0] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${autoScraping ? "animate-spin" : ""}`} />
+                Scrape All Now
+              </button>
+            </div>
+          )}
 
-          {/* ════════════════════════════════════════════════ */}
-          {/* RIGHT COLUMN: Headlines + AI Output             */}
-          {/* ════════════════════════════════════════════════ */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* ── Headlines List ── */}
-            {(visibleHeadlines.length > 0 || headlinesLoading || headlinesError) && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ════════════════════════════════════════════════ */}
+            {/* LEFT COLUMN: Input System + AI Summary          */}
+            {/* ════════════════════════════════════════════════ */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* ── Tri-Mode Input Tabs ── */}
               <GlassCard className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">
-                    Discovered Headlines
-                    {headlines.length > 0 && (
-                      <span className="ml-2 text-xs text-white/30 font-normal">
-                        ({visibleHeadlines.length}
-                        {settings.autoExcludeProcessed && headlines.length !== visibleHeadlines.length && (
-                          <>, {headlines.length - visibleHeadlines.length} hidden</>
-                        )}
-                        )
-                      </span>
-                    )}
-                  </h2>
-                  {headlines.length > 0 && (
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+                  News Discovery
+                </h2>
+
+                {/* Tab buttons */}
+                <div className="flex gap-2 mb-5">
+                  {tabs.map((tab) => (
                     <button
-                      onClick={() => setHeadlines([])}
-                      className="text-xs text-white/30 hover:text-white/60 transition-colors"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-
-                {headlinesError && (
-                  <div className="flex items-center gap-2 text-red-300 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm mb-3">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    {headlinesError}
-                  </div>
-                )}
-
-                {headlinesLoading && (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 text-teal-400 animate-spin" />
-                    <span className="ml-3 text-white/50 text-sm">Scanning feeds...</span>
-                  </div>
-                )}
-
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {visibleHeadlines.map((h, i) => (
-                    <div
-                      key={`${h.link}-${i}`}
-                      className={`flex items-center justify-between gap-3 p-3 border rounded-xl transition-all group ${
-                        h.alreadyProcessed
-                          ? "bg-white/3 border-white/5 opacity-60"
-                          : "bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/15"
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border ${
+                        activeTab === tab.id
+                          ? "tab-active"
+                          : "bg-gray-50 border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                       }`}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm text-white/80 truncate">{h.title}</p>
-                          {h.alreadyProcessed && (
-                            <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded text-[10px] text-amber-400">
-                              <CheckCircle2 className="w-2.5 h-2.5" />
-                              Processed
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {h.sourceLabel && (
-                            <span className="text-[10px] text-teal-400/60">{h.sourceLabel}</span>
-                          )}
-                          {h.pubDate && (
-                            <span className="text-xs text-white/30">
-                              {new Date(h.pubDate).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <a
-                          href={h.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 text-white/30 hover:text-white/60 transition-colors"
-                          title="Open original"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                        <button
-                          onClick={() => processArticle(h.link)}
-                          disabled={processing}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-500/15 hover:bg-teal-500/25 border border-teal-400/20 text-teal-300 text-xs font-medium rounded-lg transition-all disabled:opacity-50"
-                        >
-                          {processing && processingUrl === h.link ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-3 h-3" />
-                          )}
-                          Process
-                        </button>
-                      </div>
-                    </div>
+                      {tab.icon}
+                      {tab.label}
+                    </button>
                   ))}
                 </div>
-              </GlassCard>
-            )}
 
-            {/* ── Processing Indicator ── */}
-            {processing && (
-              <GlassCard className="p-8">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <div className="relative mb-4">
-                    <div className="w-16 h-16 rounded-full bg-teal-500/20 flex items-center justify-center">
-                      <Sparkles className="w-7 h-7 text-teal-300 animate-shimmer" />
-                    </div>
-                    <div className="absolute inset-0 rounded-full border-2 border-teal-400/30 animate-ping" />
-                  </div>
-                  <p className="text-white/70 font-medium mb-1">AI Spin Engine Active</p>
-                  <p className="text-white/40 text-sm">
-                    Scraping, translating & rewriting into Dhivehi...
-                  </p>
-                </div>
-              </GlassCard>
-            )}
-
-            {/* ── Error Display ── */}
-            {processError && (
-              <GlassCard className="p-6">
-                <div className="flex items-start gap-3 text-red-300">
-                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium">Processing Failed</p>
-                    <p className="text-sm text-red-300/70 mt-1">{processError}</p>
-                  </div>
-                </div>
-              </GlassCard>
-            )}
-
-            {/* ── AI Output ── */}
-            {result && (
-              <GlassCard className="p-6">
-                {/* Output header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wider">
-                      Dhivehi Output
-                    </h2>
-                    <p className="text-xs text-white/30 mt-1">
-                      Source: {result.originalTitle}
-                    </p>
-                  </div>
-                  <button
-                    onClick={copyToClipboard}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm text-white/70 hover:text-white transition-all"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="w-4 h-4 text-green-400" />
-                        Copied
-                      </>
+                {/* ── RSS Radar Tab ── */}
+                {activeTab === "rss" && (
+                  <div className="space-y-3">
+                    {enabledRssFeeds.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">
+                        No RSS feeds enabled.{" "}
+                        <Link href="/settings" className="text-[#5D87FF] hover:underline">
+                          Enable in Settings
+                        </Link>
+                      </p>
                     ) : (
                       <>
-                        <Copy className="w-4 h-4" />
-                        Copy
+                        <div className="relative">
+                          <select
+                            value={selectedFeed || enabledRssFeeds[0]?.rssUrl || ""}
+                            onChange={(e) => setSelectedFeed(e.target.value)}
+                            className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+                          >
+                            {enabledRssFeeds.map((source) => (
+                              <option key={source.id} value={source.rssUrl}>
+                                {source.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+                        <button
+                          onClick={fetchRSS}
+                          disabled={headlinesLoading}
+                          className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                        >
+                          {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
+                          Fetch Headlines
+                        </button>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* ── Direct Scrape Tab ── */}
+                {activeTab === "scrape" && (
+                  <div className="space-y-3">
+                    {enabledScrapeSources.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">
+                        No scrape sources enabled.{" "}
+                        <Link href="/settings" className="text-[#5D87FF] hover:underline">
+                          Enable in Settings
+                        </Link>
+                      </p>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <select
+                            value={selectedScrapeSource || enabledScrapeSources[0]?.scrapeUrl || ""}
+                            onChange={(e) => setSelectedScrapeSource(e.target.value)}
+                            className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+                          >
+                            {enabledScrapeSources.map((source) => (
+                              <option key={source.id} value={source.scrapeUrl}>
+                                {source.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+                        <button
+                          onClick={scrapeHomepage}
+                          disabled={headlinesLoading}
+                          className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                        >
+                          {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                          Scrape Homepage
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Manual Link Tab ── */}
+                {activeTab === "manual" && (
+                  <div className="space-y-3">
+                    <input
+                      type="url"
+                      value={manualUrl}
+                      onChange={(e) => setManualUrl(e.target.value)}
+                      placeholder="Paste article URL here..."
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 transition-all"
+                    />
+                    <button
+                      onClick={() => manualUrl.trim() && processArticle(manualUrl)}
+                      disabled={processing || !manualUrl.trim()}
+                      className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      Process Article
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Scrape All Now button (when auto-scrape is disabled) ── */}
+                {settings.autoScrapeInterval === "disabled" && (
+                  <button
+                    onClick={autoScrapeAll}
+                    disabled={autoScraping}
+                    className="w-full mt-4 flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 font-medium py-2.5 rounded-xl transition-all disabled:opacity-50 text-sm"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${autoScraping ? "animate-spin" : ""}`} />
+                    Scrape All Sources
                   </button>
-                </div>
+                )}
+              </GlassCard>
 
-                {/* Dhivehi RTL output area */}
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-h-[600px] overflow-y-auto">
-                  <div className="dhivehi-output text-white/90 text-base whitespace-pre-wrap" dir="rtl">
-                    {result.rewrittenText}
+              {/* ── Current AI Settings Summary ── */}
+              <GlassCard className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      AI Config
+                    </h2>
                   </div>
+                  <Link href="/settings" className="text-xs text-[#5D87FF] hover:underline transition-colors">
+                    Change
+                  </Link>
                 </div>
-
-                {/* Metadata footer */}
-                <div className="flex items-center justify-between mt-4 text-xs text-white/30">
-                  <span>Original: {result.originalLength.toLocaleString()} chars</span>
-                  <span>Processed: {new Date(result.processedAt).toLocaleTimeString()}</span>
-                </div>
-
-                {/* WordPress Publisher */}
-                <div className="mt-4">
-                  <WordPressPublisher
-                    title={result.originalTitle}
-                    content={result.rewrittenText}
-                    wordpress={settings.wordpress}
-                  />
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                    {settings.paraphrasingLevel === "heavy" ? "Heavy Rewrite" : "Light Touch"}
+                  </span>
+                  <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 capitalize">
+                    {settings.tone}
+                  </span>
+                  <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                    {settings.length === "match" ? "Full Length" : "Summary"}
+                  </span>
+                  {settings.geminiApiKey && (
+                    <span className="px-2.5 py-1 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+                      API Key Set
+                    </span>
+                  )}
                 </div>
               </GlassCard>
-            )}
+            </div>
 
-            {/* ── Empty State ── */}
-            {!processing && !result && !processError && visibleHeadlines.length === 0 && !headlinesLoading && (
-              <GlassCard className="p-12">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <div className="p-5 bg-white/5 rounded-3xl mb-5">
-                    <Newspaper className="w-12 h-12 text-white/20" />
+            {/* ════════════════════════════════════════════════ */}
+            {/* RIGHT COLUMN: Headlines + AI Output             */}
+            {/* ════════════════════════════════════════════════ */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* ── Headlines List ── */}
+              {(visibleHeadlines.length > 0 || headlinesLoading || headlinesError) && (
+                <GlassCard className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                      Discovered Headlines
+                      {headlines.length > 0 && (
+                        <span className="ml-2 text-xs text-gray-400 font-normal">
+                          ({visibleHeadlines.length}
+                          {settings.autoExcludeProcessed && headlines.length !== visibleHeadlines.length && (
+                            <>, {headlines.length - visibleHeadlines.length} hidden</>
+                          )}
+                          )
+                        </span>
+                      )}
+                    </h2>
+                    {headlines.length > 0 && (
+                      <button
+                        onClick={() => setHeadlines([])}
+                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
-                  <h3 className="text-lg font-medium text-white/40 mb-2">
-                    Ready to Discover News
-                  </h3>
-                  <p className="text-sm text-white/25 max-w-sm">
-                    {settings.autoScrapeInterval !== "disabled"
-                      ? "Auto-scrape is enabled. Headlines will appear shortly."
-                      : "Select an RSS feed, scrape a homepage, or paste a direct article link to get started."}
-                  </p>
-                </div>
-              </GlassCard>
-            )}
+
+                  {headlinesError && (
+                    <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-sm mb-3">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      {headlinesError}
+                    </div>
+                  )}
+
+                  {headlinesLoading && (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 text-[#5D87FF] animate-spin" />
+                      <span className="ml-3 text-gray-500 text-sm">Scanning feeds...</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                    {visibleHeadlines.map((h, i) => (
+                      <div
+                        key={`${h.link}-${i}`}
+                        className={`flex items-center justify-between gap-3 p-3 border rounded-xl transition-all group ${
+                          h.alreadyProcessed
+                            ? "bg-gray-50 border-gray-100 opacity-60"
+                            : "bg-white hover:bg-gray-50 border-gray-100 hover:border-gray-200"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-gray-700 truncate">{h.title}</p>
+                            {h.alreadyProcessed && (
+                              <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-600">
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                Processed
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {h.sourceLabel && (
+                              <span className="text-[10px] text-[#5D87FF]">{h.sourceLabel}</span>
+                            )}
+                            {h.pubDate && (
+                              <span className="text-xs text-gray-400">
+                                {new Date(h.pubDate).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a
+                            href={h.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                            title="Open original"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            onClick={() => processArticle(h.link)}
+                            disabled={processing}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5D87FF] hover:bg-[#4A70E0] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+                          >
+                            {processing && processingUrl === h.link ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3 h-3" />
+                            )}
+                            Process
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* ── Processing Indicator ── */}
+              {processing && (
+                <GlassCard className="p-8">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="relative mb-4">
+                      <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
+                        <Sparkles className="w-7 h-7 text-[#5D87FF]" />
+                      </div>
+                      <div className="absolute inset-0 rounded-full border-2 border-[#5D87FF]/30 animate-ping" />
+                    </div>
+                    <p className="text-gray-700 font-medium mb-1">AI Spin Engine Active</p>
+                    <p className="text-gray-400 text-sm">
+                      Scraping, translating & rewriting into Dhivehi...
+                    </p>
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* ── Error Display ── */}
+              {processError && (
+                <GlassCard className="p-6">
+                  <div className="flex items-start gap-3 text-red-600">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Processing Failed</p>
+                      <p className="text-sm text-red-500 mt-1">{processError}</p>
+                    </div>
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* ── AI Output ── */}
+              {result && splitOutput && (
+                <GlassCard className="p-6">
+                  {/* Output header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                        Dhivehi Output
+                      </h2>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Source: {result.originalTitle}
+                      </p>
+                    </div>
+                    <button
+                      onClick={copyToClipboard}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-600 hover:text-gray-900 transition-all"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Headline */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-3">
+                    <h3
+                      className="dhivehi-output text-gray-900 text-xl font-bold"
+                      dir="rtl"
+                    >
+                      {splitOutput.headline}
+                    </h3>
+                  </div>
+
+                  {/* Body text */}
+                  {splitOutput.body && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 max-h-[600px] overflow-y-auto">
+                      <div className="dhivehi-output text-gray-800 text-base whitespace-pre-wrap" dir="rtl">
+                        {splitOutput.body}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Metadata footer */}
+                  <div className="flex items-center justify-between mt-4 text-xs text-gray-400">
+                    <span>Original: {result.originalLength.toLocaleString()} chars</span>
+                    <span>Processed: {new Date(result.processedAt).toLocaleTimeString()}</span>
+                  </div>
+
+                  {/* WordPress Publisher */}
+                  <div className="mt-4">
+                    <WordPressPublisher
+                      title={result.originalTitle}
+                      content={result.rewrittenText}
+                      wordpress={settings.wordpress}
+                    />
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* ── Empty State ── */}
+              {!processing && !result && !processError && visibleHeadlines.length === 0 && !headlinesLoading && (
+                <GlassCard className="p-12">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="p-5 bg-gray-50 rounded-3xl mb-5">
+                      <Newspaper className="w-12 h-12 text-gray-300" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-500 mb-2">
+                      Ready to Discover News
+                    </h3>
+                    <p className="text-sm text-gray-400 max-w-sm">
+                      {settings.autoScrapeInterval !== "disabled"
+                        ? "Auto-scrape is enabled. Headlines will appear shortly."
+                        : "Select an RSS feed, scrape a homepage, or paste a direct article link to get started."}
+                    </p>
+                  </div>
+                </GlassCard>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

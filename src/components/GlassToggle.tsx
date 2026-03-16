@@ -15,28 +15,28 @@ export default function GlassToggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 rounded-xl transition-all text-left"
+      className="w-full flex items-center justify-between gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-all text-left"
     >
       <div className="min-w-0">
-        <p className="text-sm text-white/80">{label}</p>
+        <p className="text-sm text-gray-700">{label}</p>
         {description && (
-          <p className="text-xs text-white/35 mt-0.5">{description}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{description}</p>
         )}
       </div>
       {/* Toggle track */}
       <div
         className={`relative shrink-0 w-10 h-5.5 rounded-full transition-colors duration-200 ${
           checked
-            ? "bg-teal-500/40 border-teal-400/50"
-            : "bg-white/10 border-white/10"
+            ? "bg-blue-500 border-blue-500"
+            : "bg-gray-200 border-gray-200"
         } border`}
       >
         {/* Toggle knob */}
         <div
           className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-200 ${
             checked
-              ? "left-5 bg-teal-300"
-              : "left-0.5 bg-white/40"
+              ? "left-5 bg-white"
+              : "left-0.5 bg-white"
           }`}
         />
       </div>

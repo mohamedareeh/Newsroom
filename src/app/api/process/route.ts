@@ -18,6 +18,7 @@ interface ProcessRequest {
   tone: "formal" | "casual" | "sensational";
   length: "match" | "summary";
   geminiApiKey?: string;
+  promptTemplate?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url, paraphrasingLevel, tone, length, geminiApiKey } = body;
+  const { url, paraphrasingLevel, tone, length, geminiApiKey, promptTemplate } = body;
 
   if (!url) {
     return NextResponse.json({ error: "Missing article URL" }, { status: 400 });
@@ -144,14 +145,25 @@ export async function POST(req: NextRequest) {
         ? "The output length should approximately match the original article."
         : "Condense the article into a concise bullet-point summary with 5-8 key points.";
 
-    const prompt = `You are an expert Dhivehi journalist and translator. Your task is to rewrite the following English news article completely into Dhivehi (the language of the Maldives, written in Thaana script).
+    let prompt: string;
+    if (promptTemplate && promptTemplate.trim()) {
+      // Use custom prompt template with placeholder substitution
+      prompt = promptTemplate
+        .replace(/\{\{paraphrasingInstructions\}\}/g, paraphrasingInstructions)
+        .replace(/\{\{toneInstructions\}\}/g, toneInstructions || "")
+        .replace(/\{\{lengthInstructions\}\}/g, lengthInstructions)
+        .replace(/\{\{title\}\}/g, title)
+        .replace(/\{\{articleText\}\}/g, articleText);
+    } else {
+      // Default built-in prompt
+      prompt = `You are an expert Dhivehi journalist and translator. Your task is to rewrite the following English news article completely into Dhivehi (the language of the Maldives, written in Thaana script).
 
 RULES:
 - ${paraphrasingInstructions}
 - ${toneInstructions}
 - ${lengthInstructions}
 - The entire output MUST be in Dhivehi (Thaana script). Do NOT include any English text in the output.
-- Include a compelling Dhivehi headline at the top.
+- Include a compelling Dhivehi headline at the top on its own line.
 - Maintain factual accuracy — do not fabricate information.
 - Format the output cleanly with proper paragraphs.
 
@@ -161,6 +173,7 @@ ORIGINAL ARTICLE TEXT:
 ${articleText}
 
 OUTPUT (in Dhivehi only):`;
+    }
 
     // ────────────────────────────────────────────────────────
     // STEP 3: Call Gemini API

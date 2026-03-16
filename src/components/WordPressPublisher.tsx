@@ -72,15 +72,15 @@ export default function WordPressPublisher({
 
   if (!isConfigured) {
     return (
-      <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-xs text-yellow-300/70">
+      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
         Configure WordPress credentials in Settings to publish.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 p-4 bg-white/5 border border-white/10 rounded-xl">
-      <h4 className="text-sm font-medium text-white/70">Publish to WordPress</h4>
+    <div className="space-y-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+      <h4 className="text-sm font-medium text-gray-700">Publish to WordPress</h4>
 
       {/* Category selector */}
       <div className="flex items-center gap-2">
@@ -88,11 +88,11 @@ export default function WordPressPublisher({
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(Number(e.target.value))}
           disabled={loading}
-          className="flex-1 appearance-none bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/90 focus:outline-none focus:border-teal-400/50 transition-all"
+          className="flex-1 appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all"
         >
-          <option value={0} className="bg-slate-800">No category</option>
+          <option value={0}>No category</option>
           {categories.map((c) => (
-            <option key={c.id} value={c.id} className="bg-slate-800">
+            <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
@@ -101,7 +101,7 @@ export default function WordPressPublisher({
         <button
           onClick={handlePublish}
           disabled={publishing}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-400/30 rounded-lg text-sm text-teal-300 transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-[#5D87FF] hover:bg-[#4A70E0] rounded-lg text-sm text-white transition-all disabled:opacity-50"
         >
           {publishing ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -117,8 +117,8 @@ export default function WordPressPublisher({
         <div
           className={`flex items-center gap-2 p-2.5 rounded-lg text-xs ${
             result.error
-              ? "bg-red-500/10 border border-red-500/20 text-red-300"
-              : "bg-green-500/10 border border-green-500/20 text-green-300"
+              ? "bg-red-50 border border-red-200 text-red-600"
+              : "bg-green-50 border border-green-200 text-green-700"
           }`}
         >
           {result.error ? (
@@ -135,7 +135,7 @@ export default function WordPressPublisher({
                   href={result.editUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline hover:text-green-200"
+                  className="underline hover:text-green-900"
                 >
                   Edit in WordPress
                 </a>

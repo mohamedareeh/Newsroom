@@ -48,8 +48,28 @@ export interface AppSettings {
   customSources: NewsSource[];
   removedDefaultSourceIds: string[];
   geminiApiKey: string;
+  promptTemplate: string;
   wordpress: WordPressSettings;
 }
+
+// ─── Default AI Prompt Template ─────────────────────────────
+export const DEFAULT_PROMPT_TEMPLATE = `You are an expert Dhivehi journalist and translator. Your task is to rewrite the following English news article completely into Dhivehi (the language of the Maldives, written in Thaana script).
+
+RULES:
+- {{paraphrasingInstructions}}
+- {{toneInstructions}}
+- {{lengthInstructions}}
+- The entire output MUST be in Dhivehi (Thaana script). Do NOT include any English text in the output.
+- Include a compelling Dhivehi headline at the top on its own line.
+- Maintain factual accuracy — do not fabricate information.
+- Format the output cleanly with proper paragraphs.
+
+ORIGINAL ARTICLE TITLE: {{title}}
+
+ORIGINAL ARTICLE TEXT:
+{{articleText}}
+
+OUTPUT (in Dhivehi only):`;
 
 // ─── Helper: Get effective sources ─────────────────────────
 // Merges default sources (minus removed) with custom sources.
@@ -73,5 +93,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customSources: [],
   removedDefaultSourceIds: [],
   geminiApiKey: "",
+  promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
 };
