@@ -36,6 +36,15 @@ export interface WordPressSettings {
   appPassword: string;
 }
 
+export const GEMINI_MODELS = [
+  { label: "Gemini 2.5 Flash Preview", value: "gemini-2.5-flash-preview-05-20" },
+  { label: "Gemini 2.5 Pro Preview", value: "gemini-2.5-pro-preview-05-06" },
+  { label: "Gemini 2.0 Flash", value: "gemini-2.0-flash" },
+  { label: "Gemini 2.0 Flash Lite", value: "gemini-2.0-flash-lite" },
+  { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
+  { label: "Gemini 1.5 Pro", value: "gemini-1.5-pro" },
+];
+
 export interface AppSettings {
   enabledRssFeeds: string[];
   enabledScrapeSources: string[];
@@ -48,6 +57,7 @@ export interface AppSettings {
   customSources: NewsSource[];
   removedDefaultSourceIds: string[];
   geminiApiKey: string;
+  geminiModel: string;
   promptTemplate: string;
   wordpress: WordPressSettings;
 }
@@ -93,6 +103,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customSources: [],
   removedDefaultSourceIds: [],
   geminiApiKey: "",
+  geminiModel: "gemini-2.5-flash-preview-05-20",
   promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
 };

@@ -249,6 +249,7 @@ export default function Dashboard() {
             tone: settings.tone,
             length: settings.length,
             geminiApiKey: settings.geminiApiKey || undefined,
+            geminiModel: settings.geminiModel || undefined,
             promptTemplate: settings.promptTemplate || undefined,
           }),
         });
@@ -262,7 +263,7 @@ export default function Dashboard() {
         setProcessingUrl("");
       }
     },
-    [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.promptTemplate]
+    [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.geminiModel, settings.promptTemplate]
   );
 
   // ── Copy result to clipboard ──

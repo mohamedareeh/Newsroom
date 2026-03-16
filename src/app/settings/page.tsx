@@ -45,6 +45,7 @@ import {
   getEffectiveSources,
   AutoScrapeInterval,
   DEFAULT_PROMPT_TEMPLATE,
+  GEMINI_MODELS,
 } from "@/lib/config";
 
 export default function SettingsPage() {
@@ -563,6 +564,12 @@ export default function SettingsPage() {
                 </h2>
               </div>
               <div className="space-y-4">
+                <GlassSelect
+                  label="Gemini Model"
+                  value={settings.geminiModel || "gemini-2.5-flash-preview-05-20"}
+                  onChange={(v) => updateSettings({ geminiModel: v })}
+                  options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
+                />
                 <GlassSelect
                   label="Paraphrasing Level"
                   value={settings.paraphrasingLevel}

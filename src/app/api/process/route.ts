@@ -18,6 +18,7 @@ interface ProcessRequest {
   tone: "formal" | "casual" | "sensational";
   length: "match" | "summary";
   geminiApiKey?: string;
+  geminiModel?: string;
   promptTemplate?: string;
 }
 
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url, paraphrasingLevel, tone, length, geminiApiKey, promptTemplate } = body;
+  const { url, paraphrasingLevel, tone, length, geminiApiKey, geminiModel, promptTemplate } = body;
 
   if (!url) {
     return NextResponse.json({ error: "Missing article URL" }, { status: 400 });
@@ -178,7 +179,8 @@ OUTPUT (in Dhivehi only):`;
     // ────────────────────────────────────────────────────────
     // STEP 3: Call Gemini API
     // ────────────────────────────────────────────────────────
-    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-preview" });
+    const modelId = geminiModel || "gemini-2.5-flash-preview-05-20";
+    const model = genAI.getGenerativeModel({ model: modelId });
     const result = await model.generateContent(prompt);
     const response = result.response;
     const rewrittenText = response.text();
