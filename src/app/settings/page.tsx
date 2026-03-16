@@ -566,7 +566,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <GlassSelect
                   label="Gemini Model"
-                  value={settings.geminiModel || "gemini-2.5-flash-preview-05-20"}
+                  value={settings.geminiModel || "gemini-2.5-flash"}
                   onChange={(v) => updateSettings({ geminiModel: v })}
                   options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
                 />
