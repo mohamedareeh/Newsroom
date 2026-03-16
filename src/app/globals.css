@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* ── Custom scrollbar for the dark glassmorphism theme ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Dhivehi RTL output styling ── */
+.dhivehi-output {
+  font-family: "Noto Sans Thaana", "MV Boli", serif;
+  direction: rtl;
+  text-align: right;
+  line-height: 2;
+}
+
+/* ── Glassmorphism animation ── */
+@keyframes shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ── Tab active indicator ── */
+.tab-active {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.3), rgba(56, 189, 248, 0.3));
+  border-color: rgba(255, 255, 255, 0.3);
+}
