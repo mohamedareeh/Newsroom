@@ -165,7 +165,7 @@ OUTPUT (in Dhivehi only):`;
     // ────────────────────────────────────────────────────────
     // STEP 3: Call Gemini API
     // ────────────────────────────────────────────────────────
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const response = result.response;
     const rewrittenText = response.text();
