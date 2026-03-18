@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       if (!body.title || !body.content) {
         return NextResponse.json({ error: "Missing title or content" }, { status: 400 });
       }
+
       // Build meta fields from customFields
       const meta: Record<string, string> = {};
       if (body.customFields) {
@@ -70,7 +71,9 @@ export async function POST(req: NextRequest) {
           if (value) meta[key] = value;
         }
       }
+      const hasMeta = Object.keys(meta).length > 0;
 
+      // Step 1: Create the draft post (include meta in case fields are registered for REST)
       const res = await fetch(`${siteUrl}/wp-json/wp/v2/posts`, {
         method: "POST",
         headers: {
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest) {
           content: body.content,
           status: "draft",
           categories: body.categoryId ? [body.categoryId] : [],
-          ...(Object.keys(meta).length > 0 ? { meta } : {}),
+          ...(hasMeta ? { meta } : {}),
         }),
         signal: AbortSignal.timeout(15000),
       });
@@ -91,6 +94,38 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `WP publish error: ${res.status} — ${text}` }, { status: 502 });
       }
       const post = await res.json();
+
+      // Step 2: Set custom fields individually via WP REST meta endpoint
+      // This handles cases where meta keys are registered for REST API
+      if (hasMeta && post.id) {
+        // Check if meta was already saved in Step 1
+        const savedMeta = post.meta || {};
+        const unsavedMeta: Record<string, string> = {};
+        for (const [key, value] of Object.entries(meta)) {
+          if (savedMeta[key] !== value) {
+            unsavedMeta[key] = value;
+          }
+        }
+
+        // If any meta wasn't saved, try a PATCH update
+        if (Object.keys(unsavedMeta).length > 0) {
+          try {
+            await fetch(`${siteUrl}/wp-json/wp/v2/posts/${post.id}`, {
+              method: "PATCH",
+              headers: {
+                Authorization: wpAuth(wordpress),
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ meta: unsavedMeta }),
+              signal: AbortSignal.timeout(10000),
+            });
+          } catch {
+            // Non-fatal: custom fields may require register_post_meta() on WP side
+            console.warn("Could not save custom fields via REST — ensure meta keys are registered with show_in_rest in WordPress");
+          }
+        }
+      }
+
       return NextResponse.json({
         postId: post.id,
         editUrl: post.link ? `${siteUrl}/wp-admin/post.php?post=${post.id}&action=edit` : undefined,

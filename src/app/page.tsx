@@ -93,7 +93,7 @@ export default function Dashboard() {
   const [processingUrl, setProcessingUrl] = useState("");
   const [result, setResult] = useState<ProcessResult | null>(null);
   const [processError, setProcessError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
   // ── Helper: dedupe headlines by URL ──
   const mergeHeadlines = useCallback(
@@ -266,13 +266,13 @@ export default function Dashboard() {
     [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.geminiModel, settings.promptTemplate]
   );
 
-  // ── Copy result to clipboard ──
-  const copyToClipboard = useCallback(async () => {
-    if (!result?.rewrittenText) return;
-    await navigator.clipboard.writeText(result.rewrittenText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [result]);
+  // ── Copy section to clipboard ──
+  const copySection = useCallback(async (text: string, section: string) => {
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopiedSection(section);
+    setTimeout(() => setCopiedSection(null), 2000);
+  }, []);
 
   // ── Logout handler ──
   const handleLogout = useCallback(async () => {
@@ -758,10 +758,10 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <button
-                      onClick={copyToClipboard}
+                      onClick={() => copySection(result.rewrittenText, "all")}
                       className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-600 hover:text-gray-900 transition-all"
                     >
-                      {copied ? (
+                      {copiedSection === "all" ? (
                         <>
                           <Check className="w-4 h-4 text-green-600" />
                           Copied
@@ -769,7 +769,7 @@ export default function Dashboard() {
                       ) : (
                         <>
                           <Copy className="w-4 h-4" />
-                          Copy
+                          Copy All
                         </>
                       )}
                     </button>
@@ -777,7 +777,16 @@ export default function Dashboard() {
 
                   {/* TITLE section */}
                   <div className="mb-3">
-                    <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Title</p>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Title</p>
+                      <button
+                        onClick={() => copySection(parsedOutput.title, "title")}
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                      >
+                        {copiedSection === "title" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+                        {copiedSection === "title" ? "Copied" : "Copy"}
+                      </button>
+                    </div>
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                       <h3
                         className="dhivehi-output text-gray-900 text-xl font-bold"
@@ -791,7 +800,16 @@ export default function Dashboard() {
                   {/* CONTENT section */}
                   {parsedOutput.content && (
                     <div className="mb-3">
-                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Content</p>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Content</p>
+                        <button
+                          onClick={() => copySection(parsedOutput.content, "content")}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                        >
+                          {copiedSection === "content" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+                          {copiedSection === "content" ? "Copied" : "Copy"}
+                        </button>
+                      </div>
                       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-6 max-h-[600px] overflow-y-auto">
                         <div className="dhivehi-output text-gray-800 text-base whitespace-pre-wrap" dir="rtl">
                           {parsedOutput.content}
@@ -803,7 +821,16 @@ export default function Dashboard() {
                   {/* article_LATIN section */}
                   {parsedOutput.articleLatin && (
                     <div className="mb-3">
-                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Latin Transliteration</p>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Latin Transliteration</p>
+                        <button
+                          onClick={() => copySection(parsedOutput.articleLatin, "latin")}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                        >
+                          {copiedSection === "latin" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+                          {copiedSection === "latin" ? "Copied" : "Copy"}
+                        </button>
+                      </div>
                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                         <p className="text-gray-800 text-sm font-medium">{parsedOutput.articleLatin}</p>
                       </div>
@@ -813,7 +840,16 @@ export default function Dashboard() {
                   {/* SOCIAL_TEXT section */}
                   {parsedOutput.socialText && (
                     <div className="mb-3">
-                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Social Media Text</p>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Social Media Text</p>
+                        <button
+                          onClick={() => copySection(parsedOutput.socialText, "social")}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                        >
+                          {copiedSection === "social" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+                          {copiedSection === "social" ? "Copied" : "Copy"}
+                        </button>
+                      </div>
                       <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
                         <div className="dhivehi-output text-gray-800 text-sm" dir="rtl">
                           {parsedOutput.socialText}
