@@ -1,6 +1,7 @@
-// ─── Multi-User Auth ──────────────────────────────────────
-// Cookie-based session with multi-user support.
+// ─── Multi-User Auth with Role-Based Access ─────────────
+// Cookie-based session with multi-user support and roles.
 // Users stored in Vercel KV. Env var admin is always available as fallback.
+// Roles: "admin" (full access) | "user" (limited settings)
 
 import { cookies } from "next/headers";
 import { kv } from "@vercel/kv";
@@ -8,14 +9,21 @@ import { kv } from "@vercel/kv";
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "newsdesk2024";
 const SESSION_COOKIE = "newsdesk_session";
-const SESSION_TOKEN = "authenticated";
 const KV_USERS_KEY = "newsdesk_users";
 
 // ── Types ──
+export type UserRole = "admin" | "user";
+
 interface StoredUser {
   username: string;
   passwordHash: string;
   salt: string;
+  role?: UserRole; // Optional for backward compat — defaults to "user"
+}
+
+export interface CurrentUser {
+  username: string;
+  role: UserRole;
 }
 
 // ── Password hashing with Web Crypto ──
@@ -36,26 +44,30 @@ function generateSalt(): string {
 }
 
 // ── Validate credentials (env admin + KV users) ──
+// Returns the username on success (needed for cookie)
 export async function validateCredentials(
   username: string,
   password: string
-): Promise<boolean> {
+): Promise<{ valid: boolean; username: string }> {
   // Check env var admin first
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    return true;
+    return { valid: true, username: ADMIN_USERNAME };
   }
 
   // Check KV users
   try {
     const users = await kv.get<StoredUser[]>(KV_USERS_KEY);
-    if (!users) return false;
+    if (!users) return { valid: false, username: "" };
     const user = users.find((u) => u.username === username);
-    if (!user) return false;
+    if (!user) return { valid: false, username: "" };
     const hash = await hashWithSalt(password, user.salt);
-    return hash === user.passwordHash;
+    if (hash === user.passwordHash) {
+      return { valid: true, username: user.username };
+    }
+    return { valid: false, username: "" };
   } catch {
     // KV unavailable — only env admin works
-    return false;
+    return { valid: false, username: "" };
   }
 }
 
@@ -63,30 +75,64 @@ export async function validateCredentials(
 export async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE);
-  return session?.value === SESSION_TOKEN;
+  return !!session?.value && session.value.length > 0;
+}
+
+// ── Get current user info (username + role) ──
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const cookieStore = await cookies();
+  const session = cookieStore.get(SESSION_COOKIE);
+  if (!session?.value) return null;
+
+  const username = session.value;
+
+  // Env var admin
+  if (username === ADMIN_USERNAME) {
+    return { username, role: "admin" };
+  }
+
+  // KV user
+  try {
+    const users = await kv.get<StoredUser[]>(KV_USERS_KEY);
+    if (!users) return null;
+    const user = users.find((u) => u.username === username);
+    if (!user) return null;
+    return { username: user.username, role: user.role || "user" };
+  } catch {
+    return null;
+  }
+}
+
+// ── Check if current user is admin ──
+export async function isAdmin(): Promise<boolean> {
+  const user = await getCurrentUser();
+  return user?.role === "admin";
 }
 
 // ── User management ──
-export async function getUsers(): Promise<string[]> {
-  const usernames = [ADMIN_USERNAME];
+export async function getUsers(): Promise<Array<{ username: string; role: UserRole }>> {
+  const result: Array<{ username: string; role: UserRole }> = [
+    { username: ADMIN_USERNAME, role: "admin" },
+  ];
   try {
     const users = await kv.get<StoredUser[]>(KV_USERS_KEY);
     if (users) {
       for (const u of users) {
-        if (!usernames.includes(u.username)) {
-          usernames.push(u.username);
+        if (u.username !== ADMIN_USERNAME) {
+          result.push({ username: u.username, role: u.role || "user" });
         }
       }
     }
   } catch {
     // KV unavailable
   }
-  return usernames;
+  return result;
 }
 
 export async function addUser(
   username: string,
-  password: string
+  password: string,
+  role: UserRole = "user"
 ): Promise<{ ok: boolean; error?: string }> {
   if (!username.trim() || !password.trim()) {
     return { ok: false, error: "Username and password are required" };
@@ -101,7 +147,7 @@ export async function addUser(
     }
     const salt = generateSalt();
     const passwordHash = await hashWithSalt(password, salt);
-    users.push({ username, passwordHash, salt });
+    users.push({ username, passwordHash, salt, role });
     await kv.set(KV_USERS_KEY, users);
     return { ok: true };
   } catch {
@@ -130,4 +176,3 @@ export async function removeUser(
 
 // ── Cookie config exports ──
 export const SESSION_COOKIE_NAME = SESSION_COOKIE;
-export const SESSION_TOKEN_VALUE = SESSION_TOKEN;

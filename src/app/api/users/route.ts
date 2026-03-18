@@ -1,9 +1,9 @@
 // ─── User Management API ──────────────────────────────────
-// GET  /api/users           — list usernames
-// POST /api/users           — add or remove a user
+// GET  /api/users           — list users with roles
+// POST /api/users           — add or remove a user (admin only)
 
 import { NextRequest, NextResponse } from "next/server";
-import { isAuthenticated, getUsers, addUser, removeUser } from "@/lib/auth";
+import { isAuthenticated, isAdmin, getUsers, addUser, removeUser, UserRole } from "@/lib/auth";
 
 export async function GET() {
   if (!(await isAuthenticated())) {
@@ -18,7 +18,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { action: string; username?: string; password?: string };
+  // Only admins can manage users
+  if (!(await isAdmin())) {
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+  }
+
+  let body: { action: string; username?: string; password?: string; role?: UserRole };
   try {
     body = await req.json();
   } catch {
@@ -29,7 +34,8 @@ export async function POST(req: NextRequest) {
     if (!body.username || !body.password) {
       return NextResponse.json({ error: "Username and password required" }, { status: 400 });
     }
-    const result = await addUser(body.username, body.password);
+    const role: UserRole = body.role === "admin" ? "admin" : "user";
+    const result = await addUser(body.username, body.password, role);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }

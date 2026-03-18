@@ -40,6 +40,7 @@ import GlassCard from "@/components/GlassCard";
 import GlassSelect from "@/components/GlassSelect";
 import GlassToggle from "@/components/GlassToggle";
 import { useSettings } from "@/lib/useSettings";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 import {
   DHIVEHI_NEWS_SOURCES,
   NewsSource,
@@ -52,6 +53,7 @@ import {
 export default function SettingsPage() {
   const router = useRouter();
   const { settings, updateSettings, loaded } = useSettings();
+  const { isAdmin: userIsAdmin, loaded: userLoaded } = useCurrentUser();
 
   // Custom source form state
   const [newLabel, setNewLabel] = useState("");
@@ -67,10 +69,11 @@ export default function SettingsPage() {
   const [wpTestResult, setWpTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // User management
-  const [users, setUsers] = useState<string[]>([]);
+  const [users, setUsers] = useState<Array<{ username: string; role: string }>>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"admin" | "user">("user");
   const [userError, setUserError] = useState("");
   const [userAdding, setUserAdding] = useState(false);
 
@@ -94,7 +97,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "add", username: newUsername.trim(), password: newPassword }),
+        body: JSON.stringify({ action: "add", username: newUsername.trim(), password: newPassword, role: newRole }),
       });
       const data = await res.json();
       if (data.error) { setUserError(data.error); }
@@ -124,7 +127,7 @@ export default function SettingsPage() {
     router.refresh();
   }, [router]);
 
-  if (!loaded) {
+  if (!loaded || !userLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
         <Loader2 className="w-8 h-8 text-[#5D87FF] animate-spin" />
@@ -314,8 +317,9 @@ export default function SettingsPage() {
 
           <div className="space-y-6">
             {/* ════════════════════════════════════════════════════ */}
-            {/* User Management                                      */}
+            {/* User Management (Admin Only)                         */}
             {/* ════════════════════════════════════════════════════ */}
+            {userIsAdmin && (<>
             <GlassCard className="p-6">
               <div className="flex items-center gap-2 mb-5">
                 <Users className="w-4 h-4 text-indigo-500" />
@@ -341,25 +345,29 @@ export default function SettingsPage() {
                     <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
                   </div>
                 ) : (
-                  users.map((username, i) => {
-                    const isAdmin = i === 0;
+                  users.map((u) => {
                     return (
                       <div
-                        key={username}
+                        key={u.username}
                         className="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl"
                       >
                         <div className="flex items-center gap-2">
-                          <p className="text-sm text-gray-700">{username}</p>
-                          {isAdmin && (
+                          <p className="text-sm text-gray-700">{u.username}</p>
+                          {u.role === "admin" && (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px]">
                               <Shield className="w-2.5 h-2.5" />
                               Admin
                             </span>
                           )}
+                          {u.role === "user" && (
+                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">
+                              User
+                            </span>
+                          )}
                         </div>
-                        {!isAdmin && (
+                        {u.role !== "admin" && (
                           <button
-                            onClick={() => handleRemoveUser(username)}
+                            onClick={() => handleRemoveUser(u.username)}
                             className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 transition-colors"
                             title="Remove user"
                           >
@@ -391,6 +399,14 @@ export default function SettingsPage() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   className={inputCls}
                 />
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as "admin" | "user")}
+                  className={inputCls}
+                >
+                  <option value="user">Regular User</option>
+                  <option value="admin">Admin</option>
+                </select>
                 <button
                   onClick={handleAddUser}
                   disabled={!newUsername.trim() || !newPassword.trim() || userAdding}
@@ -401,6 +417,7 @@ export default function SettingsPage() {
                 </button>
               </div>
             </GlassCard>
+            </>)}
 
             {/* ════════════════════════════════════════════════════ */}
             {/* Source Management                                    */}
@@ -617,8 +634,9 @@ export default function SettingsPage() {
             </GlassCard>
 
             {/* ════════════════════════════════════════════════════ */}
-            {/* AI Prompt Template                                   */}
+            {/* AI Prompt Template (Admin Only)                       */}
             {/* ════════════════════════════════════════════════════ */}
+            {userIsAdmin && (<>
             <GlassCard className="p-6">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
@@ -655,10 +673,12 @@ export default function SettingsPage() {
                 Leave empty or reset to use the built-in default prompt.
               </p>
             </GlassCard>
+            </>)}
 
             {/* ════════════════════════════════════════════════════ */}
-            {/* API Keys                                             */}
+            {/* API Keys (Admin Only)                                */}
             {/* ════════════════════════════════════════════════════ */}
+            {userIsAdmin && (<>
             <GlassCard className="p-6">
               <div className="flex items-center gap-2 mb-5">
                 <Key className="w-4 h-4 text-violet-500" />
@@ -691,6 +711,7 @@ export default function SettingsPage() {
                 </p>
               </div>
             </GlassCard>
+            </>)}
 
             {/* ════════════════════════════════════════════════════ */}
             {/* General Preferences                                  */}
@@ -736,8 +757,9 @@ export default function SettingsPage() {
             </GlassCard>
 
             {/* ════════════════════════════════════════════════════ */}
-            {/* WordPress Publishing                                 */}
+            {/* WordPress Publishing (Admin Only)                    */}
             {/* ════════════════════════════════════════════════════ */}
+            {userIsAdmin && (
             <GlassCard className="p-6">
               <div className="flex items-center gap-2 mb-5">
                 <Send className="w-4 h-4 text-blue-500" />
@@ -824,6 +846,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </GlassCard>
+            )}
           </div>
         </div>
       </main>

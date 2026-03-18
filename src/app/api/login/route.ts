@@ -1,8 +1,8 @@
 // ─── Login API ─────────────────────────────────────────────
-// POST /api/login — validates admin credentials and sets session cookie.
+// POST /api/login — validates credentials and sets session cookie with username.
 
 import { NextRequest, NextResponse } from "next/server";
-import { validateCredentials, SESSION_COOKIE_NAME, SESSION_TOKEN_VALUE } from "@/lib/auth";
+import { validateCredentials, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,12 +12,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
 
-    if (!(await validateCredentials(username, password))) {
+    const result = await validateCredentials(username, password);
+    if (!result.valid) {
       return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
     }
 
     const res = NextResponse.json({ success: true });
-    res.cookies.set(SESSION_COOKIE_NAME, SESSION_TOKEN_VALUE, {
+    res.cookies.set(SESSION_COOKIE_NAME, result.username, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

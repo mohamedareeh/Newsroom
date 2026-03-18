@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(req: NextRequest) {
   const session = req.cookies.get("newsdesk_session");
-  const isAuthenticated = session?.value === "authenticated";
+  const isAuthenticated = !!session?.value && session.value.length > 0;
 
   if (!isAuthenticated) {
     const loginUrl = new URL("/login", req.url);
