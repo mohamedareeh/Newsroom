@@ -58,6 +58,7 @@ export interface AppSettings {
   removedDefaultSourceIds: string[];
   geminiApiKey: string;
   geminiModel: string;
+  composeModel: string;
   promptTemplate: string;
   wordpress: WordPressSettings;
 }
@@ -113,6 +114,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   removedDefaultSourceIds: [],
   geminiApiKey: "",
   geminiModel: "gemini-2.5-flash",
+  composeModel: "gemini-2.5-flash",
   promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
 };

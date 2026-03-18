@@ -26,6 +26,7 @@ import {
   Clock,
   CheckCircle2,
   LayoutDashboard,
+  PenTool,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import WordPressPublisher from "@/components/WordPressPublisher";
@@ -49,7 +50,7 @@ interface ProcessResult {
   processedAt: string;
 }
 
-type InputTab = "rss" | "scrape" | "manual";
+type InputTab = "rss" | "scrape" | "manual" | "writer";
 
 // ─── Main Dashboard Component ──────────────────────────────
 export default function Dashboard() {
@@ -77,6 +78,7 @@ export default function Dashboard() {
   const [selectedFeed, setSelectedFeed] = useState("");
   const [selectedScrapeSource, setSelectedScrapeSource] = useState("");
   const [manualUrl, setManualUrl] = useState("");
+  const [writerPoints, setWriterPoints] = useState("");
 
   // ── Unified headlines state ──
   const [headlines, setHeadlines] = useState<Headline[]>([]);
@@ -266,6 +268,36 @@ export default function Dashboard() {
     [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.geminiModel, settings.promptTemplate]
   );
 
+  // ── Compose an original article from bullet points ──
+  const composeArticle = useCallback(
+    async () => {
+      if (!writerPoints.trim()) return;
+      setProcessing(true);
+      setProcessingUrl("");
+      setProcessError("");
+      setResult(null);
+      try {
+        const res = await fetch("/api/compose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            points: writerPoints,
+            geminiApiKey: settings.geminiApiKey || undefined,
+            geminiModel: settings.composeModel || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Article generation failed");
+        setResult(data);
+      } catch (err: unknown) {
+        setProcessError(err instanceof Error ? err.message : "Article generation failed");
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [writerPoints, settings.geminiApiKey, settings.composeModel]
+  );
+
   // ── Copy section to clipboard ──
   const copySection = useCallback(async (text: string, section: string) => {
     if (!text) return;
@@ -331,6 +363,7 @@ export default function Dashboard() {
     { id: "rss", label: "RSS Radar", icon: <Rss className="w-4 h-4" /> },
     { id: "scrape", label: "Direct Scrape", icon: <Globe className="w-4 h-4" /> },
     { id: "manual", label: "Manual Link", icon: <Link2 className="w-4 h-4" /> },
+    { id: "writer", label: "AI Writer", icon: <PenTool className="w-4 h-4" /> },
   ];
 
   return (
@@ -562,6 +595,27 @@ export default function Dashboard() {
                     >
                       {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       Process Article
+                    </button>
+                  </div>
+                )}
+
+                {/* ── AI Writer Tab ── */}
+                {activeTab === "writer" && (
+                  <div className="space-y-3">
+                    <textarea
+                      value={writerPoints}
+                      onChange={(e) => setWriterPoints(e.target.value)}
+                      placeholder="Enter key points to write about...&#10;&#10;Example:&#10;- President announced new housing project&#10;- 5000 units in Hulhumale Phase 3&#10;- Construction starts Q2 2026&#10;- Partnership with foreign investors"
+                      rows={6}
+                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 transition-all resize-y"
+                    />
+                    <button
+                      onClick={composeArticle}
+                      disabled={processing || !writerPoints.trim()}
+                      className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
+                      Generate Article
                     </button>
                   </div>
                 )}

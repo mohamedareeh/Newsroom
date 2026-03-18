@@ -565,9 +565,15 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-4">
                 <GlassSelect
-                  label="Gemini Model"
+                  label="Rewrite Model"
                   value={settings.geminiModel || "gemini-2.5-flash"}
                   onChange={(v) => updateSettings({ geminiModel: v })}
+                  options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
+                />
+                <GlassSelect
+                  label="AI Writer Model"
+                  value={settings.composeModel || "gemini-2.5-flash"}
+                  onChange={(v) => updateSettings({ composeModel: v })}
                   options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
                 />
                 <GlassSelect
