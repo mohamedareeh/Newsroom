@@ -34,6 +34,7 @@ import {
   LayoutDashboard,
   Settings2,
   LogOut,
+  PenTool,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import GlassSelect from "@/components/GlassSelect";
@@ -256,6 +257,13 @@ export default function SettingsPage() {
           >
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
+          </Link>
+          <Link
+            href="/writer"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
+          >
+            <PenTool className="w-4 h-4" />
+            AI Writer
           </Link>
           <Link
             href="/settings"

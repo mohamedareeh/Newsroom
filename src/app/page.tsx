@@ -16,8 +16,6 @@ import {
   Settings2,
   Sparkles,
   Loader2,
-  Copy,
-  Check,
   LogOut,
   AlertCircle,
   ChevronDown,
@@ -29,7 +27,6 @@ import {
   PenTool,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
-import WordPressPublisher from "@/components/WordPressPublisher";
 import { useSettings } from "@/lib/useSettings";
 import { getEffectiveSources } from "@/lib/config";
 
@@ -42,15 +39,7 @@ interface Headline {
   sourceLabel?: string;
 }
 
-interface ProcessResult {
-  originalTitle: string;
-  originalLength: number;
-  rewrittenText: string;
-  sourceUrl: string;
-  processedAt: string;
-}
-
-type InputTab = "rss" | "scrape" | "manual" | "writer";
+type InputTab = "rss" | "scrape" | "manual";
 
 // ─── Main Dashboard Component ──────────────────────────────
 export default function Dashboard() {
@@ -78,7 +67,6 @@ export default function Dashboard() {
   const [selectedFeed, setSelectedFeed] = useState("");
   const [selectedScrapeSource, setSelectedScrapeSource] = useState("");
   const [manualUrl, setManualUrl] = useState("");
-  const [writerPoints, setWriterPoints] = useState("");
 
   // ── Unified headlines state ──
   const [headlines, setHeadlines] = useState<Headline[]>([]);
@@ -93,9 +81,7 @@ export default function Dashboard() {
   // ── Processing state ──
   const [processing, setProcessing] = useState(false);
   const [processingUrl, setProcessingUrl] = useState("");
-  const [result, setResult] = useState<ProcessResult | null>(null);
   const [processError, setProcessError] = useState("");
-  const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
   // ── Helper: dedupe headlines by URL ──
   const mergeHeadlines = useCallback(
@@ -240,7 +226,6 @@ export default function Dashboard() {
       setProcessing(true);
       setProcessingUrl(url);
       setProcessError("");
-      setResult(null);
       try {
         const res = await fetch("/api/process", {
           method: "POST",
@@ -257,7 +242,8 @@ export default function Dashboard() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Processing failed");
-        setResult(data);
+        sessionStorage.setItem("articleResult", JSON.stringify(data));
+        router.push("/article");
       } catch (err: unknown) {
         setProcessError(err instanceof Error ? err.message : "Processing failed");
       } finally {
@@ -265,46 +251,8 @@ export default function Dashboard() {
         setProcessingUrl("");
       }
     },
-    [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.geminiModel, settings.promptTemplate]
+    [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.geminiModel, settings.promptTemplate, router]
   );
-
-  // ── Compose an original article from bullet points ──
-  const composeArticle = useCallback(
-    async () => {
-      if (!writerPoints.trim()) return;
-      setProcessing(true);
-      setProcessingUrl("");
-      setProcessError("");
-      setResult(null);
-      try {
-        const res = await fetch("/api/compose", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            points: writerPoints,
-            geminiApiKey: settings.geminiApiKey || undefined,
-            geminiModel: settings.composeModel || undefined,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Article generation failed");
-        setResult(data);
-      } catch (err: unknown) {
-        setProcessError(err instanceof Error ? err.message : "Article generation failed");
-      } finally {
-        setProcessing(false);
-      }
-    },
-    [writerPoints, settings.geminiApiKey, settings.composeModel]
-  );
-
-  // ── Copy section to clipboard ──
-  const copySection = useCallback(async (text: string, section: string) => {
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    setCopiedSection(section);
-    setTimeout(() => setCopiedSection(null), 2000);
-  }, []);
 
   // ── Logout handler ──
   const handleLogout = useCallback(async () => {
@@ -312,37 +260,6 @@ export default function Dashboard() {
     router.push("/login");
     router.refresh();
   }, [router]);
-
-  // ── Parse structured AI output into sections ──
-  const parsedOutput = useMemo(() => {
-    if (!result?.rewrittenText) return null;
-    const text = result.rewrittenText.trim();
-
-    // Try to parse labeled sections: TITLE:, CONTENT:, article_LATIN:, SOCIAL_TEXT:
-    const titleMatch = text.match(/TITLE:\s*([\s\S]*?)(?=\nCONTENT:|$)/i);
-    const contentMatch = text.match(/CONTENT:\s*([\s\S]*?)(?=\narticle_LATIN:|$)/i);
-    const latinMatch = text.match(/article_LATIN:\s*([\s\S]*?)(?=\nSOCIAL_TEXT:|$)/i);
-    const socialMatch = text.match(/SOCIAL_TEXT:\s*([\s\S]*?)$/i);
-
-    if (titleMatch) {
-      return {
-        title: titleMatch[1]?.trim() || "",
-        content: contentMatch?.[1]?.trim() || "",
-        articleLatin: latinMatch?.[1]?.trim() || "",
-        socialText: socialMatch?.[1]?.trim() || "",
-      };
-    }
-
-    // Fallback: old format (headline on first line, body after)
-    const firstNewline = text.indexOf("\n");
-    if (firstNewline === -1) return { title: text, content: "", articleLatin: "", socialText: "" };
-    return {
-      title: text.slice(0, firstNewline).trim(),
-      content: text.slice(firstNewline + 1).trim(),
-      articleLatin: "",
-      socialText: "",
-    };
-  }, [result]);
 
   // ── Loading state ──
   if (!loaded) {
@@ -363,7 +280,6 @@ export default function Dashboard() {
     { id: "rss", label: "RSS Radar", icon: <Rss className="w-4 h-4" /> },
     { id: "scrape", label: "Direct Scrape", icon: <Globe className="w-4 h-4" /> },
     { id: "manual", label: "Manual Link", icon: <Link2 className="w-4 h-4" /> },
-    { id: "writer", label: "AI Writer", icon: <PenTool className="w-4 h-4" /> },
   ];
 
   return (
@@ -392,6 +308,13 @@ export default function Dashboard() {
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#4F6DF5] rounded-r-full" />
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
+          </Link>
+          <Link
+            href="/writer"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
+          >
+            <PenTool className="w-4 h-4" />
+            AI Writer
           </Link>
           <Link
             href="/settings"
@@ -600,27 +523,6 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {/* ── AI Writer Tab ── */}
-                {activeTab === "writer" && (
-                  <div className="space-y-3">
-                    <textarea
-                      value={writerPoints}
-                      onChange={(e) => setWriterPoints(e.target.value)}
-                      placeholder="Enter key points to write about...&#10;&#10;Example:&#10;- President announced new housing project&#10;- 5000 units in Hulhumale Phase 3&#10;- Construction starts Q2 2026&#10;- Partnership with foreign investors"
-                      rows={6}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 transition-all resize-y"
-                    />
-                    <button
-                      onClick={composeArticle}
-                      disabled={processing || !writerPoints.trim()}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
-                    >
-                      {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
-                      Generate Article
-                    </button>
-                  </div>
-                )}
-
                 {/* ── Scrape All Now button (when auto-scrape is disabled) ── */}
                 {settings.autoScrapeInterval === "disabled" && (
                   <button
@@ -634,36 +536,6 @@ export default function Dashboard() {
                 )}
               </GlassCard>
 
-              {/* ── Current AI Settings Summary ── */}
-              <GlassCard className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      AI Config
-                    </h2>
-                  </div>
-                  <Link href="/settings" className="text-xs text-[#4F6DF5] hover:underline transition-colors">
-                    Change
-                  </Link>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
-                    {settings.paraphrasingLevel === "heavy" ? "Heavy Rewrite" : "Light Touch"}
-                  </span>
-                  <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 capitalize">
-                    {settings.tone}
-                  </span>
-                  <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
-                    {settings.length === "match" ? "Full Length" : "Summary"}
-                  </span>
-                  {settings.geminiApiKey && (
-                    <span className="px-2.5 py-1 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
-                      API Key Set
-                    </span>
-                  )}
-                </div>
-              </GlassCard>
             </div>
 
             {/* ════════════════════════════════════════════════ */}
@@ -769,27 +641,9 @@ export default function Dashboard() {
                 </GlassCard>
               )}
 
-              {/* ── Processing Indicator ── */}
-              {processing && (
-                <GlassCard className="p-8">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="relative mb-4">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-                        <Sparkles className="w-7 h-7 text-[#4F6DF5]" />
-                      </div>
-                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#4F6DF5] animate-[rotate_1.2s_linear_infinite]" />
-                    </div>
-                    <p className="text-gray-700 font-medium mb-1">AI Spin Engine Active</p>
-                    <p className="text-gray-400 text-sm">
-                      Scraping, translating & rewriting into Dhivehi...
-                    </p>
-                  </div>
-                </GlassCard>
-              )}
-
               {/* ── Error Display ── */}
               {processError && (
-                <GlassCard className="p-6">
+                <GlassCard className="p-6 animate-fade-in">
                   <div className="flex items-start gap-3 text-red-600">
                     <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     <div>
@@ -800,147 +654,8 @@ export default function Dashboard() {
                 </GlassCard>
               )}
 
-              {/* ── AI Output ── */}
-              {result && parsedOutput && (
-                <GlassCard className="overflow-hidden animate-slide-in">
-                  {/* Gradient accent bar */}
-                  <div className="h-1 bg-gradient-to-r from-[#4F6DF5] to-[#7C5BF5]" />
-                  <div className="p-4 sm:p-6">
-                  {/* Output header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                        Dhivehi Output
-                      </h2>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Source: {result.originalTitle}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => copySection(result.rewrittenText, "all")}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-600 hover:text-gray-900 transition-all"
-                    >
-                      {copiedSection === "all" ? (
-                        <>
-                          <Check className="w-4 h-4 text-green-600" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          Copy All
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* TITLE section */}
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#4F6DF5] uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-[#4F6DF5]" />Title</p>
-                      <button
-                        onClick={() => copySection(parsedOutput.title, "title")}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-                      >
-                        {copiedSection === "title" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
-                        {copiedSection === "title" ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200/80 rounded-xl p-5">
-                      <h3
-                        className="dhivehi-output text-gray-900 text-xl font-bold"
-                        dir="rtl"
-                      >
-                        {parsedOutput.title}
-                      </h3>
-                    </div>
-                  </div>
-
-                  {/* CONTENT section */}
-                  {parsedOutput.content && (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#4F6DF5] uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-[#4F6DF5]" />Content</p>
-                        <button
-                          onClick={() => copySection(parsedOutput.content, "content")}
-                          className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-                        >
-                          {copiedSection === "content" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
-                          {copiedSection === "content" ? "Copied" : "Copy"}
-                        </button>
-                      </div>
-                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-6 max-h-[600px] overflow-y-auto">
-                        <div className="dhivehi-output text-gray-800 text-base whitespace-pre-wrap" dir="rtl">
-                          {parsedOutput.content}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* article_LATIN section */}
-                  {parsedOutput.articleLatin && (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-500 uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-indigo-500" />Latin Transliteration</p>
-                        <button
-                          onClick={() => copySection(parsedOutput.articleLatin, "latin")}
-                          className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-                        >
-                          {copiedSection === "latin" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
-                          {copiedSection === "latin" ? "Copied" : "Copy"}
-                        </button>
-                      </div>
-                      <div className="bg-indigo-50/50 border border-indigo-200/60 rounded-xl p-4">
-                        <p className="text-gray-800 text-sm font-medium">{parsedOutput.articleLatin}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SOCIAL_TEXT section */}
-                  {parsedOutput.socialText && (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="flex items-center gap-1.5 text-[11px] font-bold text-violet-500 uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-violet-500" />Social Media Text</p>
-                        <button
-                          onClick={() => copySection(parsedOutput.socialText, "social")}
-                          className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-                        >
-                          {copiedSection === "social" ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
-                          {copiedSection === "social" ? "Copied" : "Copy"}
-                        </button>
-                      </div>
-                      <div className="bg-violet-50/50 border border-violet-200/60 rounded-xl p-4">
-                        <div className="dhivehi-output text-gray-800 text-sm" dir="rtl">
-                          {parsedOutput.socialText}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Metadata footer */}
-                  <div className="flex items-center justify-between mt-4 text-xs text-gray-400">
-                    <span>Original: {result.originalLength.toLocaleString()} chars</span>
-                    <span>Processed: {new Date(result.processedAt).toLocaleTimeString()}</span>
-                  </div>
-
-                  {/* WordPress Publisher */}
-                  <div className="mt-4">
-                    <WordPressPublisher
-                      title={parsedOutput.title || result.originalTitle}
-                      content={parsedOutput.content || result.rewrittenText}
-                      wordpress={settings.wordpress}
-                      customFields={{
-                        ...(parsedOutput.articleLatin ? { article_latin: parsedOutput.articleLatin } : {}),
-                        ...(parsedOutput.socialText ? { article_social_text: parsedOutput.socialText } : {}),
-                      }}
-                    />
-                  </div>
-                  </div>
-                </GlassCard>
-              )}
-
               {/* ── Empty State ── */}
-              {!processing && !result && !processError && visibleHeadlines.length === 0 && !headlinesLoading && (
+              {!processing && !processError && visibleHeadlines.length === 0 && !headlinesLoading && (
                 <GlassCard className="p-12">
                   <div className="flex flex-col items-center justify-center text-center">
                     <div className="relative p-5 bg-gray-50 rounded-3xl mb-5">

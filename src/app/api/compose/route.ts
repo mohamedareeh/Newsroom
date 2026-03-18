@@ -2,6 +2,7 @@
 // POST /api/compose
 // Takes bullet points / key facts from the user and generates
 // a well-researched original Dhivehi article using Gemini.
+// Supports article type (news/opinion/report) and word count.
 // Output follows the same structured format as the rewrite
 // endpoint: TITLE, CONTENT, article_LATIN, SOCIAL_TEXT.
 
@@ -12,6 +13,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // ── Request body shape ──
 interface ComposeRequest {
   points: string;
+  articleType?: "news" | "opinion" | "report";
+  wordCount?: number;
   geminiApiKey?: string;
   geminiModel?: string;
 }
@@ -29,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { points, geminiApiKey, geminiModel } = body;
+  const { points, articleType, wordCount, geminiApiKey, geminiModel } = body;
 
   if (!points || !points.trim()) {
     return NextResponse.json({ error: "Please provide key points to write about" }, { status: 400 });
@@ -47,15 +50,28 @@ export async function POST(req: NextRequest) {
 
   try {
     // ────────────────────────────────────────────────────────
+    // Build tone/style instructions based on article type
+    // ────────────────────────────────────────────────────────
+    const typeInstructions = {
+      news: "Use a formal, professional journalistic tone appropriate for a national news outlet. Write in inverted pyramid style (most important information first, least important last).",
+      opinion: "Write as an opinion/editorial piece. Use an analytical, persuasive tone. Present a clear argument or perspective. Structure with a thesis statement, supporting arguments with evidence, and a strong conclusion.",
+      report: "Write as a detailed investigative report. Use a data-driven, comprehensive tone. Include thorough analysis, background context, and multiple perspectives where relevant. Structure with an executive summary lead, detailed findings, and implications.",
+    }[articleType || "news"];
+
+    const wordCountInstruction = wordCount
+      ? `The article should be approximately ${wordCount} words long.`
+      : "";
+
+    // ────────────────────────────────────────────────────────
     // Build the compose prompt
     // ────────────────────────────────────────────────────────
-    const prompt = `You are an expert Dhivehi journalist. Your task is to write a well-researched, original news article in Dhivehi (the language of the Maldives, written in Thaana script) based on the key points provided below.
+    const prompt = `You are an expert Dhivehi journalist. Your task is to write a well-researched, original article in Dhivehi (the language of the Maldives, written in Thaana script) based on the key points provided below.
 
 RULES:
-- Use a formal, professional journalistic tone appropriate for a national news outlet.
+- ${typeInstructions}
+- ${wordCountInstruction}
 - Write a compelling Dhivehi headline that captures the essence of the story.
 - Start the article with a one-sentence lead that covers who, what, when, where, and why.
-- Write the rest of the article in inverted pyramid style (most important information first, least important last).
 - Expand on the provided points with context, background, and detail to create a comprehensive article.
 - All article output (TITLE and CONTENT) MUST be in Dhivehi (Thaana script). Do NOT include any English text in TITLE or CONTENT.
 - Transliterate the Dhivehi headline into Latin alphabet (write the Thaana in English letters) for article_LATIN. Do NOT add a period/fullstop at the end.
@@ -64,7 +80,7 @@ RULES:
 
 OUTPUT FORMAT (you MUST use exactly these labels):
 TITLE: Dhivehi headline
-CONTENT: Dhivehi article (lead sentence + inverted pyramid)
+CONTENT: Dhivehi article (lead sentence + body)
 article_LATIN: headline in English letters
 SOCIAL_TEXT: Dhivehi social media text
 
