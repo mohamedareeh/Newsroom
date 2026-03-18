@@ -281,15 +281,34 @@ export default function Dashboard() {
     router.refresh();
   }, [router]);
 
-  // ── Split AI output into headline + body ──
-  const splitOutput = useMemo(() => {
+  // ── Parse structured AI output into sections ──
+  const parsedOutput = useMemo(() => {
     if (!result?.rewrittenText) return null;
     const text = result.rewrittenText.trim();
+
+    // Try to parse labeled sections: TITLE:, CONTENT:, article_LATIN:, SOCIAL_TEXT:
+    const titleMatch = text.match(/TITLE:\s*([\s\S]*?)(?=\nCONTENT:|$)/i);
+    const contentMatch = text.match(/CONTENT:\s*([\s\S]*?)(?=\narticle_LATIN:|$)/i);
+    const latinMatch = text.match(/article_LATIN:\s*([\s\S]*?)(?=\nSOCIAL_TEXT:|$)/i);
+    const socialMatch = text.match(/SOCIAL_TEXT:\s*([\s\S]*?)$/i);
+
+    if (titleMatch) {
+      return {
+        title: titleMatch[1]?.trim() || "",
+        content: contentMatch?.[1]?.trim() || "",
+        articleLatin: latinMatch?.[1]?.trim() || "",
+        socialText: socialMatch?.[1]?.trim() || "",
+      };
+    }
+
+    // Fallback: old format (headline on first line, body after)
     const firstNewline = text.indexOf("\n");
-    if (firstNewline === -1) return { headline: text, body: "" };
+    if (firstNewline === -1) return { title: text, content: "", articleLatin: "", socialText: "" };
     return {
-      headline: text.slice(0, firstNewline).trim(),
-      body: text.slice(firstNewline + 1).trim(),
+      title: text.slice(0, firstNewline).trim(),
+      content: text.slice(firstNewline + 1).trim(),
+      articleLatin: "",
+      socialText: "",
     };
   }, [result]);
 
@@ -726,8 +745,8 @@ export default function Dashboard() {
               )}
 
               {/* ── AI Output ── */}
-              {result && splitOutput && (
-                <GlassCard className="p-6">
+              {result && parsedOutput && (
+                <GlassCard className="p-4 sm:p-6">
                   {/* Output header */}
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -756,21 +775,49 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  {/* Headline */}
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-3">
-                    <h3
-                      className="dhivehi-output text-gray-900 text-xl font-bold"
-                      dir="rtl"
-                    >
-                      {splitOutput.headline}
-                    </h3>
+                  {/* TITLE section */}
+                  <div className="mb-3">
+                    <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Title</p>
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                      <h3
+                        className="dhivehi-output text-gray-900 text-xl font-bold"
+                        dir="rtl"
+                      >
+                        {parsedOutput.title}
+                      </h3>
+                    </div>
                   </div>
 
-                  {/* Body text */}
-                  {splitOutput.body && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 max-h-[600px] overflow-y-auto">
-                      <div className="dhivehi-output text-gray-800 text-base whitespace-pre-wrap" dir="rtl">
-                        {splitOutput.body}
+                  {/* CONTENT section */}
+                  {parsedOutput.content && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Content</p>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-6 max-h-[600px] overflow-y-auto">
+                        <div className="dhivehi-output text-gray-800 text-base whitespace-pre-wrap" dir="rtl">
+                          {parsedOutput.content}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* article_LATIN section */}
+                  {parsedOutput.articleLatin && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Latin Transliteration</p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <p className="text-gray-800 text-sm font-medium">{parsedOutput.articleLatin}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SOCIAL_TEXT section */}
+                  {parsedOutput.socialText && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider mb-1.5">Social Media Text</p>
+                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                        <div className="dhivehi-output text-gray-800 text-sm" dir="rtl">
+                          {parsedOutput.socialText}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -784,9 +831,13 @@ export default function Dashboard() {
                   {/* WordPress Publisher */}
                   <div className="mt-4">
                     <WordPressPublisher
-                      title={result.originalTitle}
-                      content={result.rewrittenText}
+                      title={parsedOutput.title || result.originalTitle}
+                      content={parsedOutput.content || result.rewrittenText}
                       wordpress={settings.wordpress}
+                      customFields={{
+                        ...(parsedOutput.articleLatin ? { article_latin: parsedOutput.articleLatin } : {}),
+                        ...(parsedOutput.socialText ? { article_social_text: parsedOutput.socialText } : {}),
+                      }}
                     />
                   </div>
                 </GlassCard>

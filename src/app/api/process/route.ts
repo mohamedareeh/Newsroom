@@ -157,23 +157,32 @@ export async function POST(req: NextRequest) {
         .replace(/\{\{articleText\}\}/g, articleText);
     } else {
       // Default built-in prompt
-      prompt = `You are an expert Dhivehi journalist and translator. Your task is to rewrite the following English news article completely into Dhivehi (the language of the Maldives, written in Thaana script).
+      prompt = `You are an expert Dhivehi journalist and translator. Your task is to rewrite the following news article into Dhivehi (the language of the Maldives, written in Thaana script).
 
 RULES:
 - ${paraphrasingInstructions}
 - ${toneInstructions}
 - ${lengthInstructions}
-- The entire output MUST be in Dhivehi (Thaana script). Do NOT include any English text in the output.
-- Include a compelling Dhivehi headline at the top on its own line.
+- Rewrite the headline in a different way while keeping the same meaning. The headline must be in Dhivehi (Thaana script).
+- Start the article with a one-sentence lead that expands on the headline, covering who, what, when, where, and why.
+- Write the rest of the article in inverted pyramid style (most important information first, least important last).
+- All article output (TITLE and CONTENT) MUST be in Dhivehi (Thaana script). Do NOT include any English text in TITLE or CONTENT.
+- Transliterate the paraphrased Dhivehi headline into Latin alphabet (write the Thaana in English letters) for article_LATIN.
+- Write a short 1-2 sentence social media text in Dhivehi for SOCIAL_TEXT.
 - Maintain factual accuracy — do not fabricate information.
-- Format the output cleanly with proper paragraphs.
+
+OUTPUT FORMAT (you MUST use exactly these labels):
+TITLE: paraphrased Dhivehi headline
+CONTENT: paraphrased Dhivehi article (lead sentence + inverted pyramid)
+article_LATIN: paraphrased headline in English letters
+SOCIAL_TEXT: Dhivehi social media text
 
 ORIGINAL ARTICLE TITLE: ${title}
 
 ORIGINAL ARTICLE TEXT:
 ${articleText}
 
-OUTPUT (in Dhivehi only):`;
+OUTPUT:`;
     }
 
     // ────────────────────────────────────────────────────────

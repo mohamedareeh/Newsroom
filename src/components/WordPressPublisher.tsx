@@ -13,10 +13,12 @@ export default function WordPressPublisher({
   title,
   content,
   wordpress,
+  customFields,
 }: {
   title: string;
   content: string;
   wordpress: WordPressSettings;
+  customFields?: Record<string, string>;
 }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number>(0);
@@ -55,6 +57,7 @@ export default function WordPressPublisher({
           title,
           content,
           categoryId: selectedCategory || undefined,
+          customFields: customFields || undefined,
         }),
       });
       const data = await res.json();

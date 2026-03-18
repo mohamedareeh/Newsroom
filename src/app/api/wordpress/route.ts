@@ -13,6 +13,7 @@ interface WPRequest {
   title?: string;
   content?: string;
   categoryId?: number;
+  customFields?: Record<string, string>;
 }
 
 function wpAuth(wp: WordPressSettings) {
@@ -62,6 +63,14 @@ export async function POST(req: NextRequest) {
       if (!body.title || !body.content) {
         return NextResponse.json({ error: "Missing title or content" }, { status: 400 });
       }
+      // Build meta fields from customFields
+      const meta: Record<string, string> = {};
+      if (body.customFields) {
+        for (const [key, value] of Object.entries(body.customFields)) {
+          if (value) meta[key] = value;
+        }
+      }
+
       const res = await fetch(`${siteUrl}/wp-json/wp/v2/posts`, {
         method: "POST",
         headers: {
@@ -73,6 +82,7 @@ export async function POST(req: NextRequest) {
           content: body.content,
           status: "draft",
           categories: body.categoryId ? [body.categoryId] : [],
+          ...(Object.keys(meta).length > 0 ? { meta } : {}),
         }),
         signal: AbortSignal.timeout(15000),
       });
