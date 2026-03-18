@@ -15,14 +15,14 @@ export default function GlassSelect({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+      <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
         {label}
       </label>
       <div className="relative">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all cursor-pointer"
+          className="w-full appearance-none bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 hover:border-gray-300 focus:outline-none focus:bg-white focus:border-[#4F6DF5] focus:ring-2 focus:ring-[#4F6DF5]/10 transition-all duration-200 cursor-pointer"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>

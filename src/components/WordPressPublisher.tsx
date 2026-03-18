@@ -82,7 +82,7 @@ export default function WordPressPublisher({
   }
 
   return (
-    <div className="space-y-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+    <div className="space-y-3 p-4 bg-gray-50/80 border border-gray-200/60 rounded-xl">
       <h4 className="text-sm font-medium text-gray-700">Publish to WordPress</h4>
 
       {/* Category selector */}
@@ -104,7 +104,7 @@ export default function WordPressPublisher({
         <button
           onClick={handlePublish}
           disabled={publishing}
-          className="flex items-center gap-2 px-4 py-2 bg-[#5D87FF] hover:bg-[#4A70E0] rounded-lg text-sm text-white transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all duration-200 disabled:opacity-50"
         >
           {publishing ? (
             <Loader2 className="w-4 h-4 animate-spin" />

@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* ── Design tokens ── */
+:root {
+  --accent: #4F6DF5;
+  --accent-hover: #3D5BD9;
+  --accent-light: rgba(79, 109, 245, 0.12);
+  --sidebar: #1B2332;
+  --canvas: #f0f2f5;
+}
+
 /* ── Faruma font for Dhivehi text ── */
 @font-face {
   font-family: "Faruma";
@@ -7,6 +16,17 @@
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+}
+
+/* ── Subtle dot pattern background ── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.025) 1px, transparent 0);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ── Light theme scrollbar ── */
@@ -17,11 +37,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 /* ── Dhivehi RTL output styling ── */
@@ -29,12 +49,59 @@
   font-family: "Faruma", "Noto Sans Thaana", "MV Boli", serif;
   direction: rtl;
   text-align: right;
-  line-height: 2;
+  line-height: 2.2;
 }
 
-/* ── Tab active indicator ── */
-.tab-active {
-  background-color: #5D87FF;
-  color: #ffffff;
-  border-color: #5D87FF;
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 0.4; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes rotate {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.25s ease-out both;
+}
+
+/* ── Skeleton shimmer ── */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* ── Ripple ring for empty states ── */
+.ripple-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid rgba(79, 109, 245, 0.12);
+  animation: ripple 2.5s ease-out infinite;
+}
+
+/* ── Hide scrollbar utility ── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

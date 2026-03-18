@@ -125,7 +125,7 @@ export default function SettingsPage() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f7fa]">
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
         <Loader2 className="w-8 h-8 text-[#5D87FF] animate-spin" />
       </div>
     );
@@ -232,43 +232,44 @@ export default function SettingsPage() {
   };
 
   // Common input class
-  const inputCls = "w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all";
+  const inputCls = "w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#4F6DF5] focus:ring-2 focus:ring-[#4F6DF5]/10 transition-all duration-200";
 
   return (
-    <div className="min-h-screen flex bg-[#f5f7fa]">
+    <div className="min-h-screen flex bg-[#f0f2f5]">
       {/* ════════════════════════════════════════════════════════ */}
       {/* SIDEBAR                                                 */}
       {/* ════════════════════════════════════════════════════════ */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-[#2A3447] text-white min-h-screen sticky top-0">
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-          <div className="p-2 bg-[#5D87FF]/20 rounded-xl">
-            <Newspaper className="w-6 h-6 text-[#5D87FF]" />
+      <aside className="hidden lg:flex lg:flex-col w-64 bg-gradient-to-b from-[#1B2332] to-[#141B27] text-white min-h-screen sticky top-0">
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/[0.06]">
+          <div className="p-2.5 bg-gradient-to-br from-[#4F6DF5] to-[#7C5BF5] rounded-xl">
+            <Newspaper className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-sm font-bold tracking-tight">Creative Network</h1>
-            <p className="text-[10px] text-white/40">News Desk</p>
+            <p className="text-[10px] text-white/30">News Desk</p>
           </div>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1">
           <Link
             href="/"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/60 hover:bg-white/5 hover:text-white/80 text-sm transition-colors"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
           >
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
           </Link>
           <Link
             href="/settings"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[#5D87FF]/15 text-[#5D87FF] text-sm font-medium"
+            className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.08] text-[#8BA3F9] text-sm font-medium"
           >
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#4F6DF5] rounded-r-full" />
             <Settings2 className="w-4 h-4" />
             Settings
           </Link>
         </nav>
-        <div className="px-4 py-4 border-t border-white/10">
+        <div className="px-4 py-4 border-t border-white/[0.06]">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/5 hover:text-white/70 text-sm transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/40 hover:bg-white/[0.04] hover:text-red-400 text-sm transition-all duration-200"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -281,7 +282,7 @@ export default function SettingsPage() {
       {/* ════════════════════════════════════════════════════════ */}
       <main className="flex-1 min-w-0">
         {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-4 bg-white border-b border-gray-100">
+        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60 sticky top-0 z-50">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/")}
@@ -385,7 +386,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleAddUser}
                   disabled={!newUsername.trim() || !newPassword.trim() || userAdding}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#5D87FF] hover:bg-[#4A70E0] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   {userAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                   Add User
@@ -478,7 +479,7 @@ export default function SettingsPage() {
                 <button
                   onClick={addCustomSource}
                   disabled={!newLabel.trim() || !newScrapeUrl.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#5D87FF] hover:bg-[#4A70E0] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   Add Source
@@ -797,7 +798,7 @@ export default function SettingsPage() {
                   <button
                     onClick={testWpConnection}
                     disabled={wpTesting || !settings.wordpress.siteUrl || !settings.wordpress.username || !settings.wordpress.appPassword}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#5D87FF] hover:bg-[#4A70E0] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     {wpTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
                     Test Connection

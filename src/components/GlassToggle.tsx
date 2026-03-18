@@ -15,28 +15,26 @@ export default function GlassToggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-all text-left"
+      className="w-full flex items-center justify-between gap-3 p-3 bg-gray-50/80 hover:bg-gray-100/80 border border-gray-200/60 rounded-xl transition-all duration-200 text-left"
     >
       <div className="min-w-0">
-        <p className="text-sm text-gray-700">{label}</p>
+        <p className="text-sm text-gray-700 font-medium">{label}</p>
         {description && (
           <p className="text-xs text-gray-400 mt-0.5">{description}</p>
         )}
       </div>
       {/* Toggle track */}
       <div
-        className={`relative shrink-0 w-10 h-5.5 rounded-full transition-colors duration-200 ${
+        className={`relative shrink-0 w-11 h-6 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           checked
-            ? "bg-blue-500 border-blue-500"
-            : "bg-gray-200 border-gray-200"
-        } border`}
+            ? "bg-gradient-to-r from-[#4F6DF5] to-[#7C5BF5]"
+            : "bg-gray-200"
+        }`}
       >
         {/* Toggle knob */}
         <div
-          className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-200 ${
-            checked
-              ? "left-5 bg-white"
-              : "left-0.5 bg-white"
+          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+            checked ? "left-[22px]" : "left-0.5"
           }`}
         />
       </div>

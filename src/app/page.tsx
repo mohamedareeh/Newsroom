@@ -347,8 +347,8 @@ export default function Dashboard() {
   // ── Loading state ──
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f7fa]">
-        <Loader2 className="w-8 h-8 text-[#5D87FF] animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
+        <Loader2 className="w-8 h-8 text-[#4F6DF5] animate-spin" />
       </div>
     );
   }
@@ -367,19 +367,19 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen flex bg-[#f5f7fa]">
+    <div className="min-h-screen flex bg-[#f0f2f5]">
       {/* ════════════════════════════════════════════════════════ */}
       {/* SIDEBAR                                                 */}
       {/* ════════════════════════════════════════════════════════ */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-[#2A3447] text-white min-h-screen sticky top-0">
+      <aside className="hidden lg:flex lg:flex-col w-64 bg-gradient-to-b from-[#1B2332] to-[#141B27] text-white min-h-screen sticky top-0">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-          <div className="p-2 bg-[#5D87FF]/20 rounded-xl">
-            <Newspaper className="w-6 h-6 text-[#5D87FF]" />
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/[0.06]">
+          <div className="p-2.5 bg-gradient-to-br from-[#4F6DF5] to-[#7C5BF5] rounded-xl">
+            <Newspaper className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-sm font-bold tracking-tight">Creative Network</h1>
-            <p className="text-[10px] text-white/40">News Desk</p>
+            <p className="text-[10px] text-white/30">News Desk</p>
           </div>
         </div>
 
@@ -387,14 +387,15 @@ export default function Dashboard() {
         <nav className="flex-1 px-4 py-6 space-y-1">
           <Link
             href="/"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[#5D87FF]/15 text-[#5D87FF] text-sm font-medium"
+            className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.08] text-[#8BA3F9] text-sm font-medium"
           >
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#4F6DF5] rounded-r-full" />
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
           </Link>
           <Link
             href="/settings"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/60 hover:bg-white/5 hover:text-white/80 text-sm transition-colors"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
           >
             <Settings2 className="w-4 h-4" />
             Settings
@@ -402,10 +403,10 @@ export default function Dashboard() {
         </nav>
 
         {/* Logout */}
-        <div className="px-4 py-4 border-t border-white/10">
+        <div className="px-4 py-4 border-t border-white/[0.06]">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/5 hover:text-white/70 text-sm transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/40 hover:bg-white/[0.04] hover:text-red-400 text-sm transition-all duration-200"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -418,19 +419,19 @@ export default function Dashboard() {
       {/* ════════════════════════════════════════════════════════ */}
       <main className="flex-1 min-w-0">
         {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-4 bg-white border-b border-gray-100">
+        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60 sticky top-0 z-50">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-xl">
-              <Newspaper className="w-5 h-5 text-[#5D87FF]" />
+            <div className="p-2 bg-gradient-to-br from-[#4F6DF5] to-[#7C5BF5] rounded-xl">
+              <Newspaper className="w-4 h-4 text-white" />
             </div>
             <h1 className="text-sm font-bold text-gray-900">Creative Network</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/settings" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-              <Settings2 className="w-4 h-4 text-gray-500" />
+          <div className="flex items-center gap-1">
+            <Link href="/settings" className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200">
+              <Settings2 className="w-4 h-4 text-gray-400" />
             </Link>
-            <button onClick={handleLogout} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-              <LogOut className="w-4 h-4 text-gray-500" />
+            <button onClick={handleLogout} className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200">
+              <LogOut className="w-4 h-4 text-gray-400" />
             </button>
           </div>
         </div>
@@ -438,8 +439,8 @@ export default function Dashboard() {
         <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
           {/* ── Page Title ── */}
           <div className="mb-4 sm:mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
-            <p className="text-sm text-gray-500">AI-Powered Dhivehi News Engine</p>
+            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h2>
+            <p className="text-sm text-gray-400">AI-Powered Dhivehi News Engine</p>
           </div>
 
           {/* ── Auto-Scrape Status Bar ── */}
@@ -454,7 +455,7 @@ export default function Dashboard() {
                   </span>
                 )}
                 {autoScraping && (
-                  <span className="flex items-center gap-1.5 text-[#5D87FF]">
+                  <span className="flex items-center gap-1.5 text-[#4F6DF5]">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     Scraping...
                   </span>
@@ -463,7 +464,7 @@ export default function Dashboard() {
               <button
                 onClick={autoScrapeAll}
                 disabled={autoScraping}
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#5D87FF] hover:bg-[#4A70E0] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
               >
                 <RefreshCw className={`w-3 h-3 ${autoScraping ? "animate-spin" : ""}`} />
                 Scrape All Now
@@ -482,16 +483,16 @@ export default function Dashboard() {
                   News Discovery
                 </h2>
 
-                {/* Tab buttons */}
-                <div className="flex gap-2 mb-5">
+                {/* Tab buttons — segmented control */}
+                <div className="flex gap-1 p-1 bg-gray-100/80 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border ${
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 flex-shrink-0 ${
                         activeTab === tab.id
-                          ? "tab-active"
-                          : "bg-gray-50 border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                          ? "bg-white text-gray-900 shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
                       }`}
                     >
                       {tab.icon}
@@ -506,7 +507,7 @@ export default function Dashboard() {
                     {enabledRssFeeds.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-4">
                         No RSS feeds enabled.{" "}
-                        <Link href="/settings" className="text-[#5D87FF] hover:underline">
+                        <Link href="/settings" className="text-[#4F6DF5] hover:underline">
                           Enable in Settings
                         </Link>
                       </p>
@@ -529,7 +530,7 @@ export default function Dashboard() {
                         <button
                           onClick={fetchRSS}
                           disabled={headlinesLoading}
-                          className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
                         >
                           {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
                           Fetch Headlines
@@ -545,7 +546,7 @@ export default function Dashboard() {
                     {enabledScrapeSources.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-4">
                         No scrape sources enabled.{" "}
-                        <Link href="/settings" className="text-[#5D87FF] hover:underline">
+                        <Link href="/settings" className="text-[#4F6DF5] hover:underline">
                           Enable in Settings
                         </Link>
                       </p>
@@ -568,7 +569,7 @@ export default function Dashboard() {
                         <button
                           onClick={scrapeHomepage}
                           disabled={headlinesLoading}
-                          className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
                         >
                           {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
                           Scrape Homepage
@@ -591,7 +592,7 @@ export default function Dashboard() {
                     <button
                       onClick={() => manualUrl.trim() && processArticle(manualUrl)}
                       disabled={processing || !manualUrl.trim()}
-                      className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
                     >
                       {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       Process Article
@@ -612,7 +613,7 @@ export default function Dashboard() {
                     <button
                       onClick={composeArticle}
                       disabled={processing || !writerPoints.trim()}
-                      className="w-full flex items-center justify-center gap-2 bg-[#5D87FF] hover:bg-[#4A70E0] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
                     >
                       {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
                       Generate Article
@@ -642,7 +643,7 @@ export default function Dashboard() {
                       AI Config
                     </h2>
                   </div>
-                  <Link href="/settings" className="text-xs text-[#5D87FF] hover:underline transition-colors">
+                  <Link href="/settings" className="text-xs text-[#4F6DF5] hover:underline transition-colors">
                     Change
                   </Link>
                 </div>
@@ -704,7 +705,7 @@ export default function Dashboard() {
 
                   {headlinesLoading && (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 text-[#5D87FF] animate-spin" />
+                      <Loader2 className="w-6 h-6 text-[#4F6DF5] animate-spin" />
                       <span className="ml-3 text-gray-500 text-sm">Scanning feeds...</span>
                     </div>
                   )}
@@ -713,17 +714,18 @@ export default function Dashboard() {
                     {visibleHeadlines.map((h, i) => (
                       <div
                         key={`${h.link}-${i}`}
-                        className={`p-3 border rounded-xl transition-all group ${
+                        className={`p-4 border rounded-xl transition-all duration-200 group animate-fade-in ${
                           h.alreadyProcessed
-                            ? "bg-gray-50 border-gray-100 opacity-60"
-                            : "bg-white hover:bg-gray-50 border-gray-100 hover:border-gray-200"
+                            ? "bg-gray-50/80 border-gray-100 opacity-60"
+                            : "bg-white hover:bg-gray-50/50 border-gray-200/60 border-l-[3px] border-l-[#4F6DF5]"
                         }`}
+                        style={{ animationDelay: `${i * 40}ms` }}
                       >
                         <div className="mb-2">
                           <p className="text-sm text-gray-700 leading-snug">{h.title}</p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             {h.sourceLabel && (
-                              <span className="text-[10px] text-[#5D87FF]">{h.sourceLabel}</span>
+                              <span className="text-[11px] font-medium text-blue-600 px-2 py-0.5 bg-blue-50 rounded-full">{h.sourceLabel}</span>
                             )}
                             {h.pubDate && (
                               <span className="text-xs text-gray-400">
@@ -731,7 +733,7 @@ export default function Dashboard() {
                               </span>
                             )}
                             {h.alreadyProcessed && (
-                              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-600">
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-600">
                                 <CheckCircle2 className="w-2.5 h-2.5" />
                                 Processed
                               </span>
@@ -742,7 +744,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => processArticle(h.link)}
                             disabled={processing}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5D87FF] hover:bg-[#4A70E0] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
                           >
                             {processing && processingUrl === h.link ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -772,10 +774,10 @@ export default function Dashboard() {
                 <GlassCard className="p-8">
                   <div className="flex flex-col items-center justify-center text-center">
                     <div className="relative mb-4">
-                      <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
-                        <Sparkles className="w-7 h-7 text-[#5D87FF]" />
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+                        <Sparkles className="w-7 h-7 text-[#4F6DF5]" />
                       </div>
-                      <div className="absolute inset-0 rounded-full border-2 border-[#5D87FF]/30 animate-ping" />
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#4F6DF5] animate-[rotate_1.2s_linear_infinite]" />
                     </div>
                     <p className="text-gray-700 font-medium mb-1">AI Spin Engine Active</p>
                     <p className="text-gray-400 text-sm">
@@ -800,7 +802,10 @@ export default function Dashboard() {
 
               {/* ── AI Output ── */}
               {result && parsedOutput && (
-                <GlassCard className="p-4 sm:p-6">
+                <GlassCard className="overflow-hidden animate-slide-in">
+                  {/* Gradient accent bar */}
+                  <div className="h-1 bg-gradient-to-r from-[#4F6DF5] to-[#7C5BF5]" />
+                  <div className="p-4 sm:p-6">
                   {/* Output header */}
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -832,7 +837,7 @@ export default function Dashboard() {
                   {/* TITLE section */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Title</p>
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#4F6DF5] uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-[#4F6DF5]" />Title</p>
                       <button
                         onClick={() => copySection(parsedOutput.title, "title")}
                         className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
@@ -841,7 +846,7 @@ export default function Dashboard() {
                         {copiedSection === "title" ? "Copied" : "Copy"}
                       </button>
                     </div>
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div className="bg-gradient-to-b from-gray-50 to-white border border-gray-200/80 rounded-xl p-5">
                       <h3
                         className="dhivehi-output text-gray-900 text-xl font-bold"
                         dir="rtl"
@@ -855,7 +860,7 @@ export default function Dashboard() {
                   {parsedOutput.content && (
                     <div className="mb-3">
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Content</p>
+                        <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#4F6DF5] uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-[#4F6DF5]" />Content</p>
                         <button
                           onClick={() => copySection(parsedOutput.content, "content")}
                           className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
@@ -876,7 +881,7 @@ export default function Dashboard() {
                   {parsedOutput.articleLatin && (
                     <div className="mb-3">
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Latin Transliteration</p>
+                        <p className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-500 uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-indigo-500" />Latin Transliteration</p>
                         <button
                           onClick={() => copySection(parsedOutput.articleLatin, "latin")}
                           className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
@@ -885,7 +890,7 @@ export default function Dashboard() {
                           {copiedSection === "latin" ? "Copied" : "Copy"}
                         </button>
                       </div>
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <div className="bg-indigo-50/50 border border-indigo-200/60 rounded-xl p-4">
                         <p className="text-gray-800 text-sm font-medium">{parsedOutput.articleLatin}</p>
                       </div>
                     </div>
@@ -895,7 +900,7 @@ export default function Dashboard() {
                   {parsedOutput.socialText && (
                     <div className="mb-3">
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-[10px] font-semibold text-[#5D87FF] uppercase tracking-wider">Social Media Text</p>
+                        <p className="flex items-center gap-1.5 text-[11px] font-bold text-violet-500 uppercase tracking-[0.08em]"><span className="w-2 h-2 rounded-full bg-violet-500" />Social Media Text</p>
                         <button
                           onClick={() => copySection(parsedOutput.socialText, "social")}
                           className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
@@ -904,7 +909,7 @@ export default function Dashboard() {
                           {copiedSection === "social" ? "Copied" : "Copy"}
                         </button>
                       </div>
-                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                      <div className="bg-violet-50/50 border border-violet-200/60 rounded-xl p-4">
                         <div className="dhivehi-output text-gray-800 text-sm" dir="rtl">
                           {parsedOutput.socialText}
                         </div>
@@ -930,6 +935,7 @@ export default function Dashboard() {
                       }}
                     />
                   </div>
+                  </div>
                 </GlassCard>
               )}
 
@@ -937,8 +943,10 @@ export default function Dashboard() {
               {!processing && !result && !processError && visibleHeadlines.length === 0 && !headlinesLoading && (
                 <GlassCard className="p-12">
                   <div className="flex flex-col items-center justify-center text-center">
-                    <div className="p-5 bg-gray-50 rounded-3xl mb-5">
-                      <Newspaper className="w-12 h-12 text-gray-300" />
+                    <div className="relative p-5 bg-gray-50 rounded-3xl mb-5">
+                      <Newspaper className="w-12 h-12 text-gray-300 relative z-10" />
+                      <div className="ripple-ring" />
+                      <div className="ripple-ring" style={{ animationDelay: "0.8s" }} />
                     </div>
                     <h3 className="text-lg font-medium text-gray-500 mb-2">
                       Ready to Discover News
