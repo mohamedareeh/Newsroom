@@ -56,12 +56,10 @@ export interface AppSettings {
   autoScrapeInterval: AutoScrapeInterval;
   customSources: NewsSource[];
   removedDefaultSourceIds: string[];
-  geminiApiKey: string;
-  geminiModel: string;
-  composeModel: string;
-  promptTemplate: string;
-  wordpress: WordPressSettings;
 }
+
+// Shared settings are stored server-side in Vercel KV (admin-only)
+// geminiApiKey, geminiModel, composeModel, promptTemplate, wordpress
 
 // ─── Default AI Prompt Template ─────────────────────────────
 export const DEFAULT_PROMPT_TEMPLATE = `You are an expert Dhivehi journalist and translator. Your task is to rewrite the following news article into Dhivehi (the language of the Maldives, written in Thaana script).
@@ -112,9 +110,4 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoScrapeInterval: "disabled",
   customSources: [],
   removedDefaultSourceIds: [],
-  geminiApiKey: "",
-  geminiModel: "gemini-2.5-flash",
-  composeModel: "gemini-2.5-flash",
-  promptTemplate: "",
-  wordpress: { siteUrl: "", username: "", appPassword: "" },
 };

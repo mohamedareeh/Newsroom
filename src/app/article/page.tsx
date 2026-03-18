@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import WordPressPublisher from "@/components/WordPressPublisher";
-import { useSettings } from "@/lib/useSettings";
 
 interface ProcessResult {
   originalTitle: string;
@@ -27,7 +26,6 @@ interface ProcessResult {
 
 export default function ArticlePage() {
   const router = useRouter();
-  const { settings, loaded } = useSettings();
   const [result, setResult] = useState<ProcessResult | null>(null);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
@@ -81,7 +79,7 @@ export default function ArticlePage() {
     setTimeout(() => setCopiedSection(null), 2000);
   }, []);
 
-  if (!loaded || !result || !parsedOutput) {
+  if (!result || !parsedOutput) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
         <Loader2 className="w-8 h-8 text-[#4F6DF5] animate-spin" />
@@ -227,7 +225,6 @@ export default function ArticlePage() {
           <WordPressPublisher
             title={parsedOutput.title || result.originalTitle}
             content={parsedOutput.content || result.rewrittenText}
-            wordpress={settings.wordpress}
             customFields={{
               ...(parsedOutput.articleLatin ? { article_latin: parsedOutput.articleLatin } : {}),
               ...(parsedOutput.socialText ? { article_social_text: parsedOutput.socialText } : {}),

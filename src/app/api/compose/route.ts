@@ -9,14 +9,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getSharedSettings } from "@/lib/sharedSettings";
 
 // ── Request body shape ──
 interface ComposeRequest {
   points: string;
   articleType?: "news" | "opinion" | "report";
   wordCount?: number;
-  geminiApiKey?: string;
-  geminiModel?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -32,17 +31,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { points, articleType, wordCount, geminiApiKey, geminiModel } = body;
+  const { points, articleType, wordCount } = body;
 
   if (!points || !points.trim()) {
     return NextResponse.json({ error: "Please provide key points to write about" }, { status: 400 });
   }
 
-  // Resolve Gemini API key: body → env
-  const apiKey = geminiApiKey || process.env.GEMINI_API_KEY || "";
+  // Read shared settings from KV (admin-configured)
+  const shared = await getSharedSettings();
+  const apiKey = shared.geminiApiKey || process.env.GEMINI_API_KEY || "";
   if (!apiKey) {
     return NextResponse.json(
-      { error: "No Gemini API key configured. Add one in Settings or set GEMINI_API_KEY env var." },
+      { error: "No Gemini API key configured. Ask an admin to set one in Settings." },
       { status: 400 }
     );
   }
@@ -92,7 +92,7 @@ OUTPUT:`;
     // ────────────────────────────────────────────────────────
     // Call Gemini API
     // ────────────────────────────────────────────────────────
-    const modelId = geminiModel || "gemini-2.5-flash";
+    const modelId = shared.composeModel || "gemini-2.5-flash";
     const model = genAI.getGenerativeModel({ model: modelId });
     const result = await model.generateContent(prompt);
     const response = result.response;

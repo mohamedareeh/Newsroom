@@ -10,6 +10,7 @@ import { isAuthenticated } from "@/lib/auth";
 import * as cheerio from "cheerio";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { kv } from "@vercel/kv";
+import { getSharedSettings } from "@/lib/sharedSettings";
 
 // ── Request body shape ──
 interface ProcessRequest {
@@ -17,9 +18,6 @@ interface ProcessRequest {
   paraphrasingLevel: "light" | "heavy";
   tone: "formal" | "casual" | "sensational";
   length: "match" | "summary";
-  geminiApiKey?: string;
-  geminiModel?: string;
-  promptTemplate?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -35,21 +33,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url, paraphrasingLevel, tone, length, geminiApiKey, geminiModel, promptTemplate } = body;
+  const { url, paraphrasingLevel, tone, length } = body;
 
   if (!url) {
     return NextResponse.json({ error: "Missing article URL" }, { status: 400 });
   }
 
-  // Resolve Gemini API key: body → env
-  const apiKey = geminiApiKey || process.env.GEMINI_API_KEY || "";
+  // Read shared settings from KV (admin-configured)
+  const shared = await getSharedSettings();
+  const apiKey = shared.geminiApiKey || process.env.GEMINI_API_KEY || "";
   if (!apiKey) {
     return NextResponse.json(
-      { error: "No Gemini API key configured. Add one in Settings or set GEMINI_API_KEY env var." },
+      { error: "No Gemini API key configured. Ask an admin to set one in Settings." },
       { status: 400 }
     );
   }
   const genAI = new GoogleGenerativeAI(apiKey);
+  const geminiModel = shared.geminiModel;
+  const promptTemplate = shared.promptTemplate;
 
   try {
     // ────────────────────────────────────────────────────────

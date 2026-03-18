@@ -5,18 +5,23 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { WordPressSettings } from "@/lib/config";
+import { getSharedSettings } from "@/lib/sharedSettings";
 
 interface WPRequest {
   action: "categories" | "publish";
-  wordpress: WordPressSettings;
   title?: string;
   content?: string;
   categoryId?: number;
   customFields?: Record<string, string>;
 }
 
-function wpAuth(wp: WordPressSettings) {
+interface WPCreds {
+  siteUrl: string;
+  username: string;
+  appPassword: string;
+}
+
+function wpAuth(wp: WPCreds) {
   return "Basic " + Buffer.from(`${wp.username}:${wp.appPassword}`).toString("base64");
 }
 
@@ -32,9 +37,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { action, wordpress } = body;
+  // Read WordPress credentials from shared settings (KV)
+  const shared = await getSharedSettings();
+  const wordpress = shared.wordpress;
+  const { action } = body;
   if (!wordpress?.siteUrl || !wordpress?.username || !wordpress?.appPassword) {
-    return NextResponse.json({ error: "WordPress credentials incomplete" }, { status: 400 });
+    return NextResponse.json({ error: "WordPress not configured. Ask an admin to set it up in Settings." }, { status: 400 });
   }
 
   // Normalize site URL

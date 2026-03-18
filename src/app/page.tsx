@@ -235,9 +235,6 @@ export default function Dashboard() {
             paraphrasingLevel: settings.paraphrasingLevel,
             tone: settings.tone,
             length: settings.length,
-            geminiApiKey: settings.geminiApiKey || undefined,
-            geminiModel: settings.geminiModel || undefined,
-            promptTemplate: settings.promptTemplate || undefined,
           }),
         });
         const data = await res.json();
@@ -251,7 +248,7 @@ export default function Dashboard() {
         setProcessingUrl("");
       }
     },
-    [settings.paraphrasingLevel, settings.tone, settings.length, settings.geminiApiKey, settings.geminiModel, settings.promptTemplate, router]
+    [settings.paraphrasingLevel, settings.tone, settings.length, router]
   );
 
   // ── Logout handler ──

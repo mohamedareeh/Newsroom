@@ -49,8 +49,6 @@ export default function WriterPage() {
           points: writerPoints,
           articleType,
           wordCount: parseInt(wordCount),
-          geminiApiKey: settings.geminiApiKey || undefined,
-          geminiModel: settings.composeModel || undefined,
         }),
       });
       const data = await res.json();
@@ -62,7 +60,7 @@ export default function WriterPage() {
     } finally {
       setProcessing(false);
     }
-  }, [writerPoints, articleType, wordCount, settings.geminiApiKey, settings.composeModel, router]);
+  }, [writerPoints, articleType, wordCount, router]);
 
   if (!loaded) {
     return (

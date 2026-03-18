@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { WordPressSettings } from "@/lib/config";
 import { Send, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
 interface Category {
@@ -12,37 +11,38 @@ interface Category {
 export default function WordPressPublisher({
   title,
   content,
-  wordpress,
   customFields,
 }: {
   title: string;
   content: string;
-  wordpress: WordPressSettings;
   customFields?: Record<string, string>;
 }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [configured, setConfigured] = useState<boolean | null>(null);
   const [result, setResult] = useState<{ editUrl?: string; error?: string } | null>(null);
 
-  const isConfigured = wordpress.siteUrl && wordpress.username && wordpress.appPassword;
-
   useEffect(() => {
-    if (!isConfigured) return;
     setLoading(true);
     fetch("/api/wordpress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "categories", wordpress }),
+      body: JSON.stringify({ action: "categories" }),
     })
       .then((r) => r.json())
       .then((data) => {
-        if (data.categories) setCategories(data.categories);
+        if (data.categories) {
+          setCategories(data.categories);
+          setConfigured(true);
+        } else {
+          setConfigured(false);
+        }
       })
-      .catch(() => {})
+      .catch(() => setConfigured(false))
       .finally(() => setLoading(false));
-  }, [isConfigured, wordpress]);
+  }, []);
 
   const handlePublish = async () => {
     setPublishing(true);
@@ -53,7 +53,6 @@ export default function WordPressPublisher({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "publish",
-          wordpress,
           title,
           content,
           categoryId: selectedCategory || undefined,
@@ -73,10 +72,10 @@ export default function WordPressPublisher({
     }
   };
 
-  if (!isConfigured) {
+  if (configured === false) {
     return (
       <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-        Configure WordPress credentials in Settings to publish.
+        WordPress not configured. Ask an admin to set it up in Settings.
       </div>
     );
   }

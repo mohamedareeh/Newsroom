@@ -55,6 +55,36 @@ export default function SettingsPage() {
   const { settings, updateSettings, loaded } = useSettings();
   const { isAdmin: userIsAdmin, loaded: userLoaded } = useCurrentUser();
 
+  // Shared settings (server-side, admin-configured)
+  const [shared, setShared] = useState({
+    geminiApiKey: "",
+    geminiModel: "gemini-2.5-flash",
+    composeModel: "gemini-2.5-flash",
+    promptTemplate: "",
+    wordpress: { siteUrl: "", username: "", appPassword: "" },
+  });
+
+  const fetchShared = useCallback(async () => {
+    try {
+      const res = await fetch("/api/shared-settings");
+      const data = await res.json();
+      if (!data.error) setShared(data);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchShared(); }, [fetchShared]);
+
+  const updateShared = useCallback(async (partial: Record<string, unknown>) => {
+    try {
+      await fetch("/api/shared-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(partial),
+      });
+      fetchShared();
+    } catch { /* ignore */ }
+  }, [fetchShared]);
+
   // Custom source form state
   const [newLabel, setNewLabel] = useState("");
   const [newRssUrl, setNewRssUrl] = useState("");
@@ -220,7 +250,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/wordpress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "categories", wordpress: settings.wordpress }),
+        body: JSON.stringify({ action: "categories" }),
       });
       const data = await res.json();
       if (data.error) {
@@ -592,14 +622,14 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <GlassSelect
                   label="Rewrite Model"
-                  value={settings.geminiModel || "gemini-2.5-flash"}
-                  onChange={(v) => updateSettings({ geminiModel: v })}
+                  value={shared.geminiModel || "gemini-2.5-flash"}
+                  onChange={(v) => updateShared({ geminiModel: v })}
                   options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
                 />
                 <GlassSelect
                   label="AI Writer Model"
-                  value={settings.composeModel || "gemini-2.5-flash"}
-                  onChange={(v) => updateSettings({ composeModel: v })}
+                  value={shared.composeModel || "gemini-2.5-flash"}
+                  onChange={(v) => updateShared({ composeModel: v })}
                   options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
                 />
                 <GlassSelect
@@ -645,9 +675,9 @@ export default function SettingsPage() {
                     AI Prompt Template
                   </h2>
                 </div>
-                {settings.promptTemplate && (
+                {shared.promptTemplate && (
                   <button
-                    onClick={() => updateSettings({ promptTemplate: "" })}
+                    onClick={() => updateShared({ promptTemplate: "" })}
                     className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -664,8 +694,8 @@ export default function SettingsPage() {
                 <code className="px-1 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600">{"{{articleText}}"}</code>
               </p>
               <textarea
-                value={settings.promptTemplate || DEFAULT_PROMPT_TEMPLATE}
-                onChange={(e) => updateSettings({ promptTemplate: e.target.value })}
+                value={shared.promptTemplate || DEFAULT_PROMPT_TEMPLATE}
+                onChange={(e) => updateShared({ promptTemplate: e.target.value })}
                 rows={12}
                 className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 font-mono placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all resize-y"
               />
@@ -693,8 +723,8 @@ export default function SettingsPage() {
                 <div className="relative">
                   <input
                     type={showGeminiKey ? "text" : "password"}
-                    value={settings.geminiApiKey}
-                    onChange={(e) => updateSettings({ geminiApiKey: e.target.value })}
+                    value={shared.geminiApiKey}
+                    onChange={(e) => updateShared({ geminiApiKey: e.target.value })}
                     placeholder="Enter your Gemini API key"
                     className={`${inputCls} pr-10`}
                   />
@@ -777,9 +807,9 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="url"
-                    value={settings.wordpress.siteUrl}
+                    value={shared.wordpress.siteUrl}
                     onChange={(e) =>
-                      updateSettings({ wordpress: { ...settings.wordpress, siteUrl: e.target.value } })
+                      updateShared({ wordpress: { ...shared.wordpress, siteUrl: e.target.value } })
                     }
                     placeholder="https://yoursite.com"
                     className={inputCls}
@@ -791,9 +821,9 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="text"
-                    value={settings.wordpress.username}
+                    value={shared.wordpress.username}
                     onChange={(e) =>
-                      updateSettings({ wordpress: { ...settings.wordpress, username: e.target.value } })
+                      updateShared({ wordpress: { ...shared.wordpress, username: e.target.value } })
                     }
                     placeholder="admin"
                     className={inputCls}
@@ -806,9 +836,9 @@ export default function SettingsPage() {
                   <div className="relative">
                     <input
                       type={showWpPassword ? "text" : "password"}
-                      value={settings.wordpress.appPassword}
+                      value={shared.wordpress.appPassword}
                       onChange={(e) =>
-                        updateSettings({ wordpress: { ...settings.wordpress, appPassword: e.target.value } })
+                        updateShared({ wordpress: { ...shared.wordpress, appPassword: e.target.value } })
                       }
                       placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
                       className={`${inputCls} pr-10`}
@@ -827,7 +857,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3 pt-1">
                   <button
                     onClick={testWpConnection}
-                    disabled={wpTesting || !settings.wordpress.siteUrl || !settings.wordpress.username || !settings.wordpress.appPassword}
+                    disabled={wpTesting || !shared.wordpress.siteUrl || !shared.wordpress.username || !shared.wordpress.appPassword}
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     {wpTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
