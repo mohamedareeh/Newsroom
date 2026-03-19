@@ -216,8 +216,14 @@ export default function SettingsPage() {
       rssUrl: newRssUrl.trim() || undefined,
       scrapeUrl: newScrapeUrl.trim(),
     };
+    // Add source and auto-enable it
+    const updatedCustomSources = [...(shared.customSources || []), source];
+    const updatedEnabled = enabledIds.length > 0 && !enabledIds.includes("__none__")
+      ? [...enabledIds, id]
+      : enabledIds;
     updateShared({
-      customSources: [...(shared.customSources || []), source],
+      customSources: updatedCustomSources,
+      enabledSourceIds: updatedEnabled,
     });
     setNewLabel("");
     setNewRssUrl("");

@@ -61,10 +61,15 @@ export default function Dashboard() {
         const defaults = DHIVEHI_NEWS_SOURCES.filter((s) => !removedIds.includes(s.id));
         const all = [...defaults, ...customSources];
 
-        // If enabledIds is empty, all are enabled by default
-        const enabled = enabledIds.length > 0
-          ? all.filter((s) => enabledIds.includes(s.id))
-          : all;
+        // If enabledIds is empty, all are enabled; "__none__" = none enabled
+        let enabled = all;
+        if (enabledIds.length > 0) {
+          if (enabledIds.includes("__none__")) {
+            enabled = [];
+          } else {
+            enabled = all.filter((s) => enabledIds.includes(s.id));
+          }
+        }
         setEnabledSources(enabled);
         setSourcesLoaded(true);
       })
