@@ -11,7 +11,6 @@ import Link from "next/link";
 import {
   Newspaper,
   Rss,
-  Globe,
   Link2,
   Settings2,
   Sparkles,
@@ -28,7 +27,7 @@ import {
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import { useSettings } from "@/lib/useSettings";
-import { getEffectiveSources } from "@/lib/config";
+import { DHIVEHI_NEWS_SOURCES, NewsSource } from "@/lib/config";
 
 // ─── Types ─────────────────────────────────────────────────
 interface Headline {
@@ -39,33 +38,45 @@ interface Headline {
   sourceLabel?: string;
 }
 
-type InputTab = "rss" | "scrape" | "manual";
+type InputTab = "sources" | "manual";
 
 // ─── Main Dashboard Component ──────────────────────────────
 export default function Dashboard() {
   const router = useRouter();
   const { settings, loaded } = useSettings();
 
-  // ── Derive enabled sources from settings ──
-  const effectiveSources = useMemo(
-    () => (loaded ? getEffectiveSources(settings) : []),
-    [settings, loaded]
-  );
+  // ── Shared sources from server ──
+  const [enabledSources, setEnabledSources] = useState<NewsSource[]>([]);
+  const [sourcesLoaded, setSourcesLoaded] = useState(false);
 
-  const enabledRssFeeds = useMemo(
-    () => effectiveSources.filter((s) => s.rssUrl && settings.enabledRssFeeds.includes(s.id)),
-    [effectiveSources, settings.enabledRssFeeds]
-  );
+  useEffect(() => {
+    fetch("/api/shared-settings")
+      .then((r) => r.json())
+      .then((shared) => {
+        const removedIds: string[] = shared.removedDefaultSourceIds || [];
+        const customSources: NewsSource[] = shared.customSources || [];
+        const enabledIds: string[] = shared.enabledSourceIds || [];
 
-  const enabledScrapeSources = useMemo(
-    () => effectiveSources.filter((s) => settings.enabledScrapeSources.includes(s.id)),
-    [effectiveSources, settings.enabledScrapeSources]
-  );
+        // Build effective sources (defaults minus removed + custom)
+        const defaults = DHIVEHI_NEWS_SOURCES.filter((s) => !removedIds.includes(s.id));
+        const all = [...defaults, ...customSources];
+
+        // If enabledIds is empty, all are enabled by default
+        const enabled = enabledIds.length > 0
+          ? all.filter((s) => enabledIds.includes(s.id))
+          : all;
+        setEnabledSources(enabled);
+        setSourcesLoaded(true);
+      })
+      .catch(() => {
+        setEnabledSources(DHIVEHI_NEWS_SOURCES);
+        setSourcesLoaded(true);
+      });
+  }, []);
 
   // ── Input tab state ──
-  const [activeTab, setActiveTab] = useState<InputTab>("rss");
-  const [selectedFeed, setSelectedFeed] = useState("");
-  const [selectedScrapeSource, setSelectedScrapeSource] = useState("");
+  const [activeTab, setActiveTab] = useState<InputTab>("sources");
+  const [selectedSource, setSelectedSource] = useState("");
   const [manualUrl, setManualUrl] = useState("");
 
   // ── Unified headlines state ──
@@ -101,40 +112,41 @@ export default function Dashboard() {
     [settings.autoExcludeProcessed]
   );
 
-  // ── Auto-scrape all sources ──
+  // ── Fetch all enabled sources (RSS + scrape) ──
   const autoScrapeAll = useCallback(async () => {
     if (autoScraping) return;
     setAutoScraping(true);
 
     const fetches: Promise<Headline[]>[] = [];
 
-    for (const source of enabledRssFeeds) {
-      if (!source.rssUrl) continue;
-      fetches.push(
-        fetch(`/api/feeds?url=${encodeURIComponent(source.rssUrl)}&count=${settings.defaultHeadlineCount}`)
-          .then((r) => r.json())
-          .then((data) =>
-            (data.headlines || []).map((h: Headline) => ({
-              ...h,
-              sourceLabel: source.label,
-            }))
-          )
-          .catch(() => [] as Headline[])
-      );
-    }
-
-    for (const source of enabledScrapeSources) {
-      fetches.push(
-        fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`)
-          .then((r) => r.json())
-          .then((data) =>
-            (data.headlines || []).map((h: Headline) => ({
-              ...h,
-              sourceLabel: source.label,
-            }))
-          )
-          .catch(() => [] as Headline[])
-      );
+    for (const source of enabledSources) {
+      // Try RSS first if available
+      if (source.rssUrl) {
+        fetches.push(
+          fetch(`/api/feeds?url=${encodeURIComponent(source.rssUrl)}&count=${settings.defaultHeadlineCount}`)
+            .then((r) => r.json())
+            .then((data) =>
+              (data.headlines || []).map((h: Headline) => ({
+                ...h,
+                sourceLabel: source.label,
+              }))
+            )
+            .catch(() => [] as Headline[])
+        );
+      } else {
+        // Fallback to scrape
+        fetches.push(
+          fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`)
+            .then((r) => r.json())
+            .then((data) =>
+              (data.headlines || []).map((h: Headline) => ({
+                ...h,
+                sourceLabel: source.label,
+              }))
+            )
+            .catch(() => [] as Headline[])
+        );
+      }
     }
 
     const results = await Promise.allSettled(fetches);
@@ -148,7 +160,7 @@ export default function Dashboard() {
     setHeadlines((prev) => mergeHeadlines(prev, allHeadlines));
     setLastAutoScrape(new Date());
     setAutoScraping(false);
-  }, [enabledRssFeeds, enabledScrapeSources, settings.defaultHeadlineCount, mergeHeadlines, autoScraping]);
+  }, [enabledSources, settings.defaultHeadlineCount, mergeHeadlines, autoScraping]);
 
   // ── Auto-scrape interval ──
   useEffect(() => {
@@ -172,22 +184,27 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.autoScrapeInterval, loaded]);
 
-  // ── Fetch RSS headlines (manual) ──
-  const fetchRSS = useCallback(async () => {
-    const feedUrl = selectedFeed || enabledRssFeeds[0]?.rssUrl;
-    if (!feedUrl) return;
+  // ── Fetch from a single source (RSS preferred, fallback to scrape) ──
+  const fetchSource = useCallback(async () => {
+    const sourceId = selectedSource || enabledSources[0]?.id;
+    const source = enabledSources.find((s) => s.id === sourceId);
+    if (!source) return;
     setHeadlinesLoading(true);
     setHeadlinesError("");
     try {
-      const source = enabledRssFeeds.find((s) => s.rssUrl === feedUrl);
-      const res = await fetch(
-        `/api/feeds?url=${encodeURIComponent(feedUrl)}&count=${settings.defaultHeadlineCount}`
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to fetch feed");
+      let data;
+      if (source.rssUrl) {
+        const res = await fetch(`/api/feeds?url=${encodeURIComponent(source.rssUrl)}&count=${settings.defaultHeadlineCount}`);
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to fetch");
+      } else {
+        const res = await fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`);
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to scrape");
+      }
       const incoming = (data.headlines || []).map((h: Headline) => ({
         ...h,
-        sourceLabel: source?.label,
+        sourceLabel: source.label,
       }));
       setHeadlines((prev) => mergeHeadlines(prev, incoming));
     } catch (err: unknown) {
@@ -195,30 +212,7 @@ export default function Dashboard() {
     } finally {
       setHeadlinesLoading(false);
     }
-  }, [selectedFeed, enabledRssFeeds, settings.defaultHeadlineCount, mergeHeadlines]);
-
-  // ── Scrape homepage (manual) ──
-  const scrapeHomepage = useCallback(async () => {
-    const scrapeUrl = selectedScrapeSource || enabledScrapeSources[0]?.scrapeUrl;
-    if (!scrapeUrl) return;
-    setHeadlinesLoading(true);
-    setHeadlinesError("");
-    try {
-      const source = enabledScrapeSources.find((s) => s.scrapeUrl === scrapeUrl);
-      const res = await fetch(`/api/scrape?url=${encodeURIComponent(scrapeUrl)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to scrape");
-      const incoming = (data.headlines || []).map((h: Headline) => ({
-        ...h,
-        sourceLabel: source?.label,
-      }));
-      setHeadlines((prev) => mergeHeadlines(prev, incoming));
-    } catch (err: unknown) {
-      setHeadlinesError(err instanceof Error ? err.message : "Failed to scrape");
-    } finally {
-      setHeadlinesLoading(false);
-    }
-  }, [selectedScrapeSource, enabledScrapeSources, mergeHeadlines]);
+  }, [selectedSource, enabledSources, settings.defaultHeadlineCount, mergeHeadlines]);
 
   // ── Process an article through the AI Spin Engine ──
   const processArticle = useCallback(
@@ -259,7 +253,7 @@ export default function Dashboard() {
   }, [router]);
 
   // ── Loading state ──
-  if (!loaded) {
+  if (!loaded || !sourcesLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
         <Loader2 className="w-8 h-8 text-[#4F6DF5] animate-spin" />
@@ -274,8 +268,7 @@ export default function Dashboard() {
 
   // ── Tab config ──
   const tabs: Array<{ id: InputTab; label: string; icon: React.ReactNode }> = [
-    { id: "rss", label: "RSS Radar", icon: <Rss className="w-4 h-4" /> },
-    { id: "scrape", label: "Direct Scrape", icon: <Globe className="w-4 h-4" /> },
+    { id: "sources", label: "Fetch Headlines", icon: <Rss className="w-4 h-4" /> },
     { id: "manual", label: "Manual Link", icon: <Link2 className="w-4 h-4" /> },
   ];
 
@@ -421,26 +414,26 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                {/* ── RSS Radar Tab ── */}
-                {activeTab === "rss" && (
+                {/* ── Fetch Headlines Tab (merged RSS + scrape) ── */}
+                {activeTab === "sources" && (
                   <div className="space-y-3">
-                    {enabledRssFeeds.length === 0 ? (
+                    {enabledSources.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-4">
-                        No RSS feeds enabled.{" "}
+                        No sources configured.{" "}
                         <Link href="/settings" className="text-[#4F6DF5] hover:underline">
-                          Enable in Settings
+                          Configure in Settings
                         </Link>
                       </p>
                     ) : (
                       <>
                         <div className="relative">
                           <select
-                            value={selectedFeed || enabledRssFeeds[0]?.rssUrl || ""}
-                            onChange={(e) => setSelectedFeed(e.target.value)}
-                            className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+                            value={selectedSource || enabledSources[0]?.id || ""}
+                            onChange={(e) => setSelectedSource(e.target.value)}
+                            className="w-full appearance-none bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:bg-white focus:border-[#4F6DF5] transition-all cursor-pointer"
                           >
-                            {enabledRssFeeds.map((source) => (
-                              <option key={source.id} value={source.rssUrl}>
+                            {enabledSources.map((source) => (
+                              <option key={source.id} value={source.id}>
                                 {source.label}
                               </option>
                             ))}
@@ -448,51 +441,12 @@ export default function Dashboard() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                         </div>
                         <button
-                          onClick={fetchRSS}
+                          onClick={fetchSource}
                           disabled={headlinesLoading}
                           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
                         >
                           {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
                           Fetch Headlines
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Direct Scrape Tab ── */}
-                {activeTab === "scrape" && (
-                  <div className="space-y-3">
-                    {enabledScrapeSources.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-4">
-                        No scrape sources enabled.{" "}
-                        <Link href="/settings" className="text-[#4F6DF5] hover:underline">
-                          Enable in Settings
-                        </Link>
-                      </p>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <select
-                            value={selectedScrapeSource || enabledScrapeSources[0]?.scrapeUrl || ""}
-                            onChange={(e) => setSelectedScrapeSource(e.target.value)}
-                            className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
-                          >
-                            {enabledScrapeSources.map((source) => (
-                              <option key={source.id} value={source.scrapeUrl}>
-                                {source.label}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                        </div>
-                        <button
-                          onClick={scrapeHomepage}
-                          disabled={headlinesLoading}
-                          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
-                        >
-                          {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-                          Scrape Homepage
                         </button>
                       </>
                     )}

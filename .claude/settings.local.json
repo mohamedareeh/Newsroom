@@ -12,7 +12,15 @@
       "Bash(npm run:*)",
       "mcp__Claude_Preview__preview_start",
       "Bash(npm uninstall:*)",
-      "Bash(grep -E \"\\\\.\\(tsx|ts|json\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx|ts|json\\)$\")",
+      "Bash(gh auth:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebSearch",
+      "WebFetch(domain:ai.google.dev)"
     ]
   }
 }

@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
       composeModel: body.composeModel !== undefined ? body.composeModel : current.composeModel,
       promptTemplate: body.promptTemplate !== undefined ? body.promptTemplate : current.promptTemplate,
       wordpress: body.wordpress !== undefined ? { ...current.wordpress, ...body.wordpress } : current.wordpress,
+      customSources: body.customSources !== undefined ? body.customSources : current.customSources,
+      removedDefaultSourceIds: body.removedDefaultSourceIds !== undefined ? body.removedDefaultSourceIds : current.removedDefaultSourceIds,
+      enabledSourceIds: body.enabledSourceIds !== undefined ? body.enabledSourceIds : current.enabledSourceIds,
     };
     await saveSharedSettings(updated);
     return NextResponse.json({ success: true });

@@ -44,7 +44,6 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import {
   DHIVEHI_NEWS_SOURCES,
   NewsSource,
-  getEffectiveSources,
   AutoScrapeInterval,
   DEFAULT_PROMPT_TEMPLATE,
   GEMINI_MODELS,
@@ -62,6 +61,9 @@ export default function SettingsPage() {
     composeModel: "gemini-2.5-flash",
     promptTemplate: "",
     wordpress: { siteUrl: "", username: "", appPassword: "" },
+    customSources: [] as NewsSource[],
+    removedDefaultSourceIds: [] as string[],
+    enabledSourceIds: [] as string[],
   });
 
   const fetchShared = useCallback(async () => {
@@ -165,37 +167,46 @@ export default function SettingsPage() {
     );
   }
 
-  const effectiveSources = getEffectiveSources(settings);
-  const rssSources = effectiveSources.filter((s) => s.rssUrl);
+  // Effective sources from shared settings
+  const effectiveSources = (() => {
+    const defaults = DHIVEHI_NEWS_SOURCES.filter(
+      (s) => !shared.removedDefaultSourceIds.includes(s.id)
+    );
+    return [...defaults, ...(shared.customSources || [])];
+  })();
 
-  const allRssEnabled = rssSources.length > 0 && rssSources.every((s) => settings.enabledRssFeeds.includes(s.id));
-  const allScrapeEnabled = effectiveSources.length > 0 && effectiveSources.every((s) => settings.enabledScrapeSources.includes(s.id));
+  const enabledIds = shared.enabledSourceIds;
+  const allEnabled = effectiveSources.length > 0 &&
+    (enabledIds.length === 0 || effectiveSources.every((s) => enabledIds.includes(s.id)));
 
-  const toggleRssSource = (id: string) => {
-    const current = settings.enabledRssFeeds;
-    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-    updateSettings({ enabledRssFeeds: next });
+  const toggleSource = (id: string) => {
+    // If enabledIds is empty, all are enabled — initialize with all minus this one
+    if (enabledIds.length === 0) {
+      const allIds = effectiveSources.map((s) => s.id).filter((x) => x !== id);
+      updateShared({ enabledSourceIds: allIds });
+    } else {
+      const next = enabledIds.includes(id)
+        ? enabledIds.filter((x) => x !== id)
+        : [...enabledIds, id];
+      updateShared({ enabledSourceIds: next });
+    }
   };
 
-  const toggleScrapeSource = (id: string) => {
-    const current = settings.enabledScrapeSources;
-    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-    updateSettings({ enabledScrapeSources: next });
+  const toggleAllSources = () => {
+    if (allEnabled) {
+      updateShared({ enabledSourceIds: ["__none__"] }); // Empty but not "all"
+    } else {
+      updateShared({ enabledSourceIds: [] }); // Empty = all enabled
+    }
   };
 
-  const toggleAllRss = () => {
-    updateSettings({
-      enabledRssFeeds: allRssEnabled ? [] : rssSources.map((s) => s.id),
-    });
+  const isSourceEnabled = (id: string) => {
+    if (enabledIds.length === 0) return true; // empty = all
+    if (enabledIds.includes("__none__")) return false;
+    return enabledIds.includes(id);
   };
 
-  const toggleAllScrape = () => {
-    updateSettings({
-      enabledScrapeSources: allScrapeEnabled ? [] : effectiveSources.map((s) => s.id),
-    });
-  };
-
-  // ── Custom source management ──
+  // ── Custom source management (admin only, saved to KV) ──
   const addCustomSource = () => {
     if (!newLabel.trim() || !newScrapeUrl.trim()) return;
     const id = "custom-" + Date.now();
@@ -205,12 +216,8 @@ export default function SettingsPage() {
       rssUrl: newRssUrl.trim() || undefined,
       scrapeUrl: newScrapeUrl.trim(),
     };
-    updateSettings({
-      customSources: [...(settings.customSources || []), source],
-      enabledScrapeSources: [...settings.enabledScrapeSources, id],
-      enabledRssFeeds: source.rssUrl
-        ? [...settings.enabledRssFeeds, id]
-        : settings.enabledRssFeeds,
+    updateShared({
+      customSources: [...(shared.customSources || []), source],
     });
     setNewLabel("");
     setNewRssUrl("");
@@ -220,25 +227,20 @@ export default function SettingsPage() {
   const removeSource = (source: NewsSource) => {
     const isDefault = DHIVEHI_NEWS_SOURCES.some((s) => s.id === source.id);
     if (isDefault) {
-      updateSettings({
-        removedDefaultSourceIds: [...settings.removedDefaultSourceIds, source.id],
-        enabledRssFeeds: settings.enabledRssFeeds.filter((x) => x !== source.id),
-        enabledScrapeSources: settings.enabledScrapeSources.filter((x) => x !== source.id),
+      updateShared({
+        removedDefaultSourceIds: [...shared.removedDefaultSourceIds, source.id],
       });
     } else {
-      updateSettings({
-        customSources: (settings.customSources || []).filter((s) => s.id !== source.id),
-        enabledRssFeeds: settings.enabledRssFeeds.filter((x) => x !== source.id),
-        enabledScrapeSources: settings.enabledScrapeSources.filter((x) => x !== source.id),
+      updateShared({
+        customSources: (shared.customSources || []).filter((s) => s.id !== source.id),
       });
     }
   };
 
   const restoreDefaults = () => {
-    updateSettings({
+    updateShared({
       removedDefaultSourceIds: [],
-      enabledRssFeeds: DHIVEHI_NEWS_SOURCES.filter((s) => s.rssUrl).map((s) => s.id),
-      enabledScrapeSources: DHIVEHI_NEWS_SOURCES.map((s) => s.id),
+      enabledSourceIds: [],
     });
   };
 
@@ -450,8 +452,9 @@ export default function SettingsPage() {
             </>)}
 
             {/* ════════════════════════════════════════════════════ */}
-            {/* Source Management                                    */}
+            {/* Source Management (Admin Only)                       */}
             {/* ════════════════════════════════════════════════════ */}
+            {userIsAdmin && (<>
             <GlassCard className="p-6">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
@@ -460,7 +463,7 @@ export default function SettingsPage() {
                     News Sources
                   </h2>
                 </div>
-                {settings.removedDefaultSourceIds.length > 0 && (
+                {shared.removedDefaultSourceIds.length > 0 && (
                   <button
                     onClick={restoreDefaults}
                     className="text-xs text-[#5D87FF] hover:underline transition-colors"
@@ -543,57 +546,22 @@ export default function SettingsPage() {
             </GlassCard>
 
             {/* ════════════════════════════════════════════════════ */}
-            {/* RSS Feed Toggles                                     */}
+            {/* Source Enable/Disable Toggles (Admin Only)           */}
             {/* ════════════════════════════════════════════════════ */}
             <GlassCard className="p-6">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
                   <Rss className="w-4 h-4 text-orange-500" />
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    RSS Feed Sources
+                    Enabled Sources
                   </h2>
                 </div>
                 <button
-                  onClick={toggleAllRss}
+                  onClick={toggleAllSources}
                   className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {allRssEnabled ? <ToggleRight className="w-4 h-4 text-blue-500" /> : <ToggleLeft className="w-4 h-4" />}
-                  {allRssEnabled ? "Deselect All" : "Select All"}
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {rssSources.map((source) => (
-                  <GlassToggle
-                    key={source.id}
-                    label={source.label}
-                    description={source.rssUrl}
-                    checked={settings.enabledRssFeeds.includes(source.id)}
-                    onChange={() => toggleRssSource(source.id)}
-                  />
-                ))}
-                {rssSources.length === 0 && (
-                  <p className="text-xs text-gray-400 py-2">No sources with RSS feeds.</p>
-                )}
-              </div>
-            </GlassCard>
-
-            {/* ════════════════════════════════════════════════════ */}
-            {/* Direct Scrape Toggles                                */}
-            {/* ════════════════════════════════════════════════════ */}
-            <GlassCard className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-sky-500" />
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    Direct Scrape Sources
-                  </h2>
-                </div>
-                <button
-                  onClick={toggleAllScrape}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {allScrapeEnabled ? <ToggleRight className="w-4 h-4 text-blue-500" /> : <ToggleLeft className="w-4 h-4" />}
-                  {allScrapeEnabled ? "Deselect All" : "Select All"}
+                  {allEnabled ? <ToggleRight className="w-4 h-4 text-blue-500" /> : <ToggleLeft className="w-4 h-4" />}
+                  {allEnabled ? "Deselect All" : "Select All"}
                 </button>
               </div>
               <div className="space-y-1.5">
@@ -601,16 +569,17 @@ export default function SettingsPage() {
                   <GlassToggle
                     key={source.id}
                     label={source.label}
-                    description={source.scrapeUrl}
-                    checked={settings.enabledScrapeSources.includes(source.id)}
-                    onChange={() => toggleScrapeSource(source.id)}
+                    description={source.rssUrl || source.scrapeUrl}
+                    checked={isSourceEnabled(source.id)}
+                    onChange={() => toggleSource(source.id)}
                   />
                 ))}
               </div>
             </GlassCard>
+            </>)}
 
             {/* ════════════════════════════════════════════════════ */}
-            {/* AI Settings                                          */}
+            {/* AI Settings (visible to all)                         */}
             {/* ════════════════════════════════════════════════════ */}
             <GlassCard className="p-6">
               <div className="flex items-center gap-2 mb-5">

@@ -1,10 +1,17 @@
 // ─── Shared Settings (Server-Side KV) ─────────────────────
 // Admin-configured settings stored in Vercel KV, shared across all users.
-// Includes Gemini API key, models, WordPress creds, prompt template.
+// Includes Gemini config, WordPress creds, prompt template, and news sources.
 
 import { kv } from "@vercel/kv";
 
 const KV_SHARED_SETTINGS_KEY = "newsdesk_shared_settings";
+
+export interface SharedNewsSource {
+  id: string;
+  label: string;
+  rssUrl?: string;
+  scrapeUrl: string;
+}
 
 export interface SharedSettings {
   geminiApiKey: string;
@@ -16,6 +23,10 @@ export interface SharedSettings {
     username: string;
     appPassword: string;
   };
+  // Source management (admin-only)
+  customSources: SharedNewsSource[];
+  removedDefaultSourceIds: string[];
+  enabledSourceIds: string[]; // unified enabled list (both RSS + scrape)
 }
 
 export const DEFAULT_SHARED: SharedSettings = {
@@ -24,6 +35,9 @@ export const DEFAULT_SHARED: SharedSettings = {
   composeModel: "gemini-2.5-flash",
   promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
+  customSources: [],
+  removedDefaultSourceIds: [],
+  enabledSourceIds: [], // empty = all enabled by default
 };
 
 export async function getSharedSettings(): Promise<SharedSettings> {

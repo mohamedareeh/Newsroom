@@ -46,20 +46,17 @@ export const GEMINI_MODELS = [
 ];
 
 export interface AppSettings {
-  enabledRssFeeds: string[];
-  enabledScrapeSources: string[];
   paraphrasingLevel: ParaphrasingLevel;
   tone: Tone;
   length: Length;
   defaultHeadlineCount: number;
   autoExcludeProcessed: boolean;
   autoScrapeInterval: AutoScrapeInterval;
-  customSources: NewsSource[];
-  removedDefaultSourceIds: string[];
 }
 
 // Shared settings are stored server-side in Vercel KV (admin-only)
-// geminiApiKey, geminiModel, composeModel, promptTemplate, wordpress
+// geminiApiKey, geminiModel, composeModel, promptTemplate, wordpress,
+// customSources, removedDefaultSourceIds, enabledSourceIds
 
 // ─── Default AI Prompt Template ─────────────────────────────
 export const DEFAULT_PROMPT_TEMPLATE = `You are an expert Dhivehi journalist and translator. Your task is to rewrite the following news article into Dhivehi (the language of the Maldives, written in Thaana script).
@@ -89,25 +86,12 @@ ORIGINAL ARTICLE TEXT:
 
 OUTPUT:`;
 
-// ─── Helper: Get effective sources ─────────────────────────
-// Merges default sources (minus removed) with custom sources.
-export function getEffectiveSources(settings: AppSettings): NewsSource[] {
-  const defaults = DHIVEHI_NEWS_SOURCES.filter(
-    (s) => !settings.removedDefaultSourceIds.includes(s.id)
-  );
-  return [...defaults, ...(settings.customSources || [])];
-}
-
 // ─── Defaults ──────────────────────────────────────────────
 export const DEFAULT_SETTINGS: AppSettings = {
-  enabledRssFeeds: DHIVEHI_NEWS_SOURCES.filter((s) => s.rssUrl).map((s) => s.id),
-  enabledScrapeSources: DHIVEHI_NEWS_SOURCES.map((s) => s.id),
   paraphrasingLevel: "heavy",
   tone: "formal",
   length: "match",
   defaultHeadlineCount: 10,
   autoExcludeProcessed: true,
   autoScrapeInterval: "disabled",
-  customSources: [],
-  removedDefaultSourceIds: [],
 };
