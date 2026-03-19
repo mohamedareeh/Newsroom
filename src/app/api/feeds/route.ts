@@ -12,7 +12,7 @@ import { kv } from "@vercel/kv";
 const parser = new Parser({
   timeout: 10000,
   headers: {
-    "User-Agent": "CreativeNetworkNewsDesk/1.0",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   },
 });
 

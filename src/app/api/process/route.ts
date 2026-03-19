@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     // STEP 1: Scrape the article text
     // ────────────────────────────────────────────────────────
     const pageRes = await fetch(url, {
-      headers: { "User-Agent": "CreativeNetworkNewsDesk/1.0" },
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" },
       signal: AbortSignal.timeout(15000),
     });
 
