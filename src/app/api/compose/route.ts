@@ -90,30 +90,50 @@ ${points}
 OUTPUT:`;
 
     // ────────────────────────────────────────────────────────
-    // Call Gemini API
+    // Call Gemini API with streaming
     // ────────────────────────────────────────────────────────
     const modelId = shared.composeModel || "gemini-2.5-flash";
     const model = genAI.getGenerativeModel({ model: modelId });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const rewrittenText = response.text();
 
-    if (!rewrittenText) {
-      return NextResponse.json(
-        { error: "Gemini returned an empty response" },
-        { status: 500 }
-      );
-    }
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Send metadata
+          const meta = JSON.stringify({
+            type: "meta",
+            originalTitle: "AI Generated Article",
+            originalLength: points.length,
+            sourceUrl: "",
+          });
+          controller.enqueue(encoder.encode(`data: ${meta}\n\n`));
 
-    // ────────────────────────────────────────────────────────
-    // Return the result (compatible with process endpoint shape)
-    // ────────────────────────────────────────────────────────
-    return NextResponse.json({
-      originalTitle: "AI Generated Article",
-      originalLength: points.length,
-      rewrittenText,
-      sourceUrl: "",
-      processedAt: new Date().toISOString(),
+          // Stream Gemini response
+          const result = await model.generateContentStream(prompt);
+          for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) {
+              const payload = JSON.stringify({ type: "chunk", text });
+              controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+            }
+          }
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Streaming failed";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: msg })}\n\n`));
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (err: unknown) {
     console.error("Compose API error:", err);

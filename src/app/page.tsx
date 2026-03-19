@@ -220,27 +220,20 @@ export default function Dashboard() {
       setProcessing(true);
       setProcessingUrl(url);
       setProcessError("");
-      try {
-        const res = await fetch("/api/process", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url,
-            paraphrasingLevel: settings.paraphrasingLevel,
-            tone: settings.tone,
-            length: settings.length,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Processing failed");
-        sessionStorage.setItem("articleResult", JSON.stringify(data));
-        router.push("/article");
-      } catch (err: unknown) {
-        setProcessError(err instanceof Error ? err.message : "Processing failed");
-      } finally {
-        setProcessing(false);
-        setProcessingUrl("");
-      }
+      // Store request params and navigate — article page will stream the response
+      sessionStorage.setItem("articleRequest", JSON.stringify({
+        endpoint: "/api/process",
+        body: {
+          url,
+          paraphrasingLevel: settings.paraphrasingLevel,
+          tone: settings.tone,
+          length: settings.length,
+        },
+      }));
+      sessionStorage.removeItem("articleResult");
+      router.push("/article");
+      setProcessing(false);
+      setProcessingUrl("");
     },
     [settings.paraphrasingLevel, settings.tone, settings.length, router]
   );

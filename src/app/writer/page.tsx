@@ -37,29 +37,19 @@ export default function WriterPage() {
     router.refresh();
   }, [router]);
 
-  const composeArticle = useCallback(async () => {
+  const composeArticle = useCallback(() => {
     if (!writerPoints.trim()) return;
-    setProcessing(true);
-    setProcessError("");
-    try {
-      const res = await fetch("/api/compose", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          points: writerPoints,
-          articleType,
-          wordCount: parseInt(wordCount),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Article generation failed");
-      sessionStorage.setItem("articleResult", JSON.stringify(data));
-      router.push("/article");
-    } catch (err: unknown) {
-      setProcessError(err instanceof Error ? err.message : "Article generation failed");
-    } finally {
-      setProcessing(false);
-    }
+    // Store request params and navigate — article page will stream the response
+    sessionStorage.setItem("articleRequest", JSON.stringify({
+      endpoint: "/api/compose",
+      body: {
+        points: writerPoints,
+        articleType,
+        wordCount: parseInt(wordCount),
+      },
+    }));
+    sessionStorage.removeItem("articleResult");
+    router.push("/article");
   }, [writerPoints, articleType, wordCount, router]);
 
   if (!loaded) {

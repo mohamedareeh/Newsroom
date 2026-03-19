@@ -187,40 +187,59 @@ OUTPUT:`;
     }
 
     // ────────────────────────────────────────────────────────
-    // STEP 3: Call Gemini API
+    // STEP 3: Call Gemini API with streaming
     // ────────────────────────────────────────────────────────
     const modelId = geminiModel || "gemini-2.5-flash";
     const model = genAI.getGenerativeModel({ model: modelId });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const rewrittenText = response.text();
 
-    if (!rewrittenText) {
-      return NextResponse.json(
-        { error: "Gemini returned an empty response" },
-        { status: 500 }
-      );
-    }
+    // Send metadata first, then stream the AI output
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Send metadata as first SSE event
+          const meta = JSON.stringify({
+            type: "meta",
+            originalTitle: title,
+            originalLength: articleText.length,
+            sourceUrl: url,
+          });
+          controller.enqueue(encoder.encode(`data: ${meta}\n\n`));
 
-    // ────────────────────────────────────────────────────────
-    // STEP 4: Mark URL as processed in Vercel KV (48h TTL)
-    // ────────────────────────────────────────────────────────
-    try {
-      await kv.set(`processed:${url}`, Date.now(), { ex: 172800 }); // 48 hours
-    } catch {
-      // KV unavailable — non-fatal, just skip caching
-      console.warn("Vercel KV unavailable — skipping memory bank write");
-    }
+          // Stream Gemini response
+          const result = await model.generateContentStream(prompt);
+          for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) {
+              const payload = JSON.stringify({ type: "chunk", text });
+              controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+            }
+          }
 
-    // ────────────────────────────────────────────────────────
-    // STEP 5: Return the result
-    // ────────────────────────────────────────────────────────
-    return NextResponse.json({
-      originalTitle: title,
-      originalLength: articleText.length,
-      rewrittenText,
-      sourceUrl: url,
-      processedAt: new Date().toISOString(),
+          // Send done event
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+
+          // Mark as processed in KV
+          try {
+            await kv.set(`processed:${url}`, Date.now(), { ex: 172800 });
+          } catch {
+            // KV unavailable — non-fatal
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Streaming failed";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: msg })}\n\n`));
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (err: unknown) {
     console.error("Process API error:", err);
