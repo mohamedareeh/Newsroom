@@ -169,7 +169,7 @@ RULES:
 - Write the rest of the article in inverted pyramid style (most important information first, least important last).
 - All article output (TITLE and CONTENT) MUST be in Dhivehi (Thaana script). Do NOT include any English text in TITLE or CONTENT.
 - Transliterate the paraphrased Dhivehi headline into Latin alphabet (write the Thaana in English letters) for article_LATIN. Do NOT add a period/fullstop at the end.
-- Write a short 1-2 sentence social media text in Dhivehi for SOCIAL_TEXT.
+- Write a short punchy social media caption in Dhivehi for SOCIAL_TEXT. Make it headline-style, not a full sentence — do NOT end with އެވެ or similar sentence endings. Use a hook or call-to-action style.
 - Generate exactly 3 relevant tags/keywords in Dhivehi for TAGS (comma-separated, in Thaana script).
 - Maintain factual accuracy — do not fabricate information.
 
