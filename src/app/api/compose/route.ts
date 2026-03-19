@@ -76,6 +76,7 @@ RULES:
 - All article output (TITLE and CONTENT) MUST be in Dhivehi (Thaana script). Do NOT include any English text in TITLE or CONTENT.
 - Transliterate the Dhivehi headline into Latin alphabet (write the Thaana in English letters) for article_LATIN. Do NOT add a period/fullstop at the end.
 - Write a short 1-2 sentence social media text in Dhivehi for SOCIAL_TEXT.
+- Generate exactly 3 relevant tags/keywords in Dhivehi for TAGS (comma-separated, in Thaana script).
 - Maintain factual accuracy — only use information from the provided points. Do not fabricate facts.
 
 OUTPUT FORMAT (you MUST use exactly these labels):
@@ -83,6 +84,7 @@ TITLE: Dhivehi headline
 CONTENT: Dhivehi article (lead sentence + body)
 article_LATIN: headline in English letters
 SOCIAL_TEXT: Dhivehi social media text
+TAGS: tag1, tag2, tag3
 
 KEY POINTS TO WRITE ABOUT:
 ${points}

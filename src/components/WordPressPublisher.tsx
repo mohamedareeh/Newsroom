@@ -12,10 +12,12 @@ export default function WordPressPublisher({
   title,
   content,
   customFields,
+  tags,
 }: {
   title: string;
   content: string;
   customFields?: Record<string, string>;
+  tags?: string[];
 }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number>(0);
@@ -36,6 +38,13 @@ export default function WordPressPublisher({
         if (data.categories) {
           setCategories(data.categories);
           setConfigured(true);
+          // Default to "ޚަބަރު" (news) category if it exists
+          const newsCategory = data.categories.find(
+            (c: Category) => c.name === "ޚަބަރު"
+          );
+          if (newsCategory) {
+            setSelectedCategory(newsCategory.id);
+          }
         } else {
           setConfigured(false);
         }
@@ -57,6 +66,7 @@ export default function WordPressPublisher({
           content,
           categoryId: selectedCategory || undefined,
           customFields: customFields || undefined,
+          tags: tags || undefined,
         }),
       });
       const data = await res.json();
@@ -113,6 +123,18 @@ export default function WordPressPublisher({
           Publish Draft
         </button>
       </div>
+
+      {/* Tags preview */}
+      {tags && tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider mr-1 self-center">Tags:</span>
+          {tags.map((tag, i) => (
+            <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[11px] font-medium">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Result */}
       {result && (

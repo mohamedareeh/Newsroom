@@ -13,6 +13,7 @@ interface WPRequest {
   content?: string;
   categoryId?: number;
   customFields?: Record<string, string>;
+  tags?: string[]; // Tag names to create/assign
 }
 
 interface WPCreds {
@@ -23,6 +24,44 @@ interface WPCreds {
 
 function wpAuth(wp: WPCreds) {
   return "Basic " + Buffer.from(`${wp.username}:${wp.appPassword}`).toString("base64");
+}
+
+// Resolve tag names to IDs — creates tags if they don't exist
+async function resolveTagIds(siteUrl: string, wp: WPCreds, tagNames: string[]): Promise<number[]> {
+  const tagIds: number[] = [];
+  for (const name of tagNames) {
+    const trimmed = name.trim();
+    if (!trimmed) continue;
+    try {
+      // Search for existing tag
+      const searchRes = await fetch(
+        `${siteUrl}/wp-json/wp/v2/tags?search=${encodeURIComponent(trimmed)}&per_page=5`,
+        { headers: { Authorization: wpAuth(wp) }, signal: AbortSignal.timeout(5000) }
+      );
+      const existing = await searchRes.json();
+      const match = Array.isArray(existing) && existing.find(
+        (t: { name: string }) => t.name.toLowerCase() === trimmed.toLowerCase()
+      );
+      if (match) {
+        tagIds.push(match.id);
+      } else {
+        // Create new tag
+        const createRes = await fetch(`${siteUrl}/wp-json/wp/v2/tags`, {
+          method: "POST",
+          headers: { Authorization: wpAuth(wp), "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (createRes.ok) {
+          const newTag = await createRes.json();
+          tagIds.push(newTag.id);
+        }
+      }
+    } catch {
+      // Skip failed tags
+    }
+  }
+  return tagIds;
 }
 
 export async function POST(req: NextRequest) {
@@ -81,7 +120,13 @@ export async function POST(req: NextRequest) {
       }
       const hasMeta = Object.keys(meta).length > 0;
 
-      // Step 1: Create the draft post (include meta in case fields are registered for REST)
+      // Resolve tags if provided
+      let tagIds: number[] = [];
+      if (body.tags && body.tags.length > 0) {
+        tagIds = await resolveTagIds(siteUrl, wordpress, body.tags);
+      }
+
+      // Step 1: Create the draft post
       const res = await fetch(`${siteUrl}/wp-json/wp/v2/posts`, {
         method: "POST",
         headers: {
@@ -93,6 +138,7 @@ export async function POST(req: NextRequest) {
           content: body.content,
           status: "draft",
           categories: body.categoryId ? [body.categoryId] : [],
+          ...(tagIds.length > 0 ? { tags: tagIds } : {}),
           ...(hasMeta ? { meta } : {}),
         }),
         signal: AbortSignal.timeout(15000),

@@ -170,6 +170,7 @@ RULES:
 - All article output (TITLE and CONTENT) MUST be in Dhivehi (Thaana script). Do NOT include any English text in TITLE or CONTENT.
 - Transliterate the paraphrased Dhivehi headline into Latin alphabet (write the Thaana in English letters) for article_LATIN. Do NOT add a period/fullstop at the end.
 - Write a short 1-2 sentence social media text in Dhivehi for SOCIAL_TEXT.
+- Generate exactly 3 relevant tags/keywords in Dhivehi for TAGS (comma-separated, in Thaana script).
 - Maintain factual accuracy — do not fabricate information.
 
 OUTPUT FORMAT (you MUST use exactly these labels):
@@ -177,6 +178,7 @@ TITLE: paraphrased Dhivehi headline
 CONTENT: paraphrased Dhivehi article (lead sentence + inverted pyramid)
 article_LATIN: paraphrased headline in English letters
 SOCIAL_TEXT: Dhivehi social media text
+TAGS: tag1, tag2, tag3
 
 ORIGINAL ARTICLE TITLE: ${title}
 

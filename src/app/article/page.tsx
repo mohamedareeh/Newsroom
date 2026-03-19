@@ -134,24 +134,29 @@ export default function ArticlePage() {
     const titleMatch = text.match(/TITLE:\s*([\s\S]*?)(?=\nCONTENT:|$)/i);
     const contentMatch = text.match(/CONTENT:\s*([\s\S]*?)(?=\narticle_LATIN:|$)/i);
     const latinMatch = text.match(/article_LATIN:\s*([\s\S]*?)(?=\nSOCIAL_TEXT:|$)/i);
-    const socialMatch = text.match(/SOCIAL_TEXT:\s*([\s\S]*?)$/i);
+    const socialMatch = text.match(/SOCIAL_TEXT:\s*([\s\S]*?)(?=\nTAGS:|$)/i);
+    const tagsMatch = text.match(/TAGS:\s*([\s\S]*?)$/i);
 
     if (titleMatch) {
+      const tagsStr = tagsMatch?.[1]?.trim() || "";
+      const tags = tagsStr ? tagsStr.split(",").map((t) => t.trim()).filter(Boolean) : [];
       return {
         title: titleMatch[1]?.trim() || "",
         content: contentMatch?.[1]?.trim() || "",
         articleLatin: latinMatch?.[1]?.trim() || "",
         socialText: socialMatch?.[1]?.trim() || "",
+        tags,
       };
     }
 
     const firstNewline = text.indexOf("\n");
-    if (firstNewline === -1) return { title: text, content: "", articleLatin: "", socialText: "" };
+    if (firstNewline === -1) return { title: text, content: "", articleLatin: "", socialText: "", tags: [] };
     return {
       title: text.slice(0, firstNewline).trim(),
       content: text.slice(firstNewline + 1).trim(),
       articleLatin: "",
       socialText: "",
+      tags: [],
     };
   }, [rawText]);
 
@@ -222,6 +227,21 @@ export default function ArticlePage() {
                 <p className="text-sm text-red-500 mt-1">{error}</p>
               </div>
             </div>
+          </GlassCard>
+        )}
+
+        {/* WordPress Publisher — at the top, shown when done */}
+        {done && parsedOutput && (
+          <GlassCard className="p-5 sm:p-6 animate-fade-in">
+            <WordPressPublisher
+              title={parsedOutput.title || meta?.originalTitle || ""}
+              content={parsedOutput.content || rawText}
+              customFields={{
+                ...(parsedOutput.articleLatin ? { article_latin: parsedOutput.articleLatin } : {}),
+                ...(parsedOutput.socialText ? { article_social_text: parsedOutput.socialText } : {}),
+              }}
+              tags={parsedOutput.tags.length > 0 ? parsedOutput.tags : undefined}
+            />
           </GlassCard>
         )}
 
@@ -331,23 +351,6 @@ export default function ArticlePage() {
           </GlassCard>
         )}
 
-        {/* WordPress Publisher — only show when done */}
-        {done && parsedOutput && (
-          <GlassCard className="p-5 sm:p-6 animate-fade-in">
-            <div className="flex items-center justify-between mb-4 text-xs text-gray-400">
-              <span>Original: {(meta?.originalLength || 0).toLocaleString()} chars</span>
-              <span>Completed: {new Date().toLocaleTimeString()}</span>
-            </div>
-            <WordPressPublisher
-              title={parsedOutput.title || meta?.originalTitle || ""}
-              content={parsedOutput.content || rawText}
-              customFields={{
-                ...(parsedOutput.articleLatin ? { article_latin: parsedOutput.articleLatin } : {}),
-                ...(parsedOutput.socialText ? { article_social_text: parsedOutput.socialText } : {}),
-              }}
-            />
-          </GlassCard>
-        )}
       </div>
     </div>
   );
