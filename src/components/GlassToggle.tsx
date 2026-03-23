@@ -15,7 +15,7 @@ export default function GlassToggle({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-3 p-3 bg-gray-50/80 hover:bg-gray-100/80 border border-gray-200/60 rounded-xl transition-all duration-200 text-left"
+      className="w-full flex items-center justify-between gap-3 p-3 bg-[#f5f3f0] hover:bg-[#ece9e4] border border-gray-200/60 rounded-xl transition-all duration-200 text-left"
     >
       <div className="min-w-0">
         <p className="text-sm text-gray-700 font-medium">{label}</p>
@@ -27,7 +27,7 @@ export default function GlassToggle({
       <div
         className={`relative shrink-0 w-11 h-6 rounded-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           checked
-            ? "bg-gradient-to-r from-[#4F6DF5] to-[#7C5BF5]"
+            ? "bg-[#1a1a1a]"
             : "bg-gray-200"
         }`}
       >

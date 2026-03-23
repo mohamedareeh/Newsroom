@@ -170,14 +170,14 @@ export default function ArticlePage() {
   // Loading state — no data yet
   if (!rawText && !error && !streaming) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
-        <Loader2 className="w-8 h-8 text-[#4F6DF5] animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
+        <Loader2 className="w-8 h-8 text-[#1a1a1a] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
+    <div className="min-h-screen bg-[#f5f3f0]">
       {/* Header bar */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200/60 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
@@ -191,7 +191,7 @@ export default function ArticlePage() {
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold text-gray-900 truncate">Article Output</h1>
               {streaming && (
-                <span className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 rounded-full text-[10px] text-blue-600 font-medium">
+                <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f0ede8] rounded-full text-[10px] text-[#1a1a1a] font-medium">
                   <Sparkles className="w-3 h-3 animate-pulse" />
                   Writing...
                 </span>
@@ -250,10 +250,10 @@ export default function ArticlePage() {
           <GlassCard className="p-8">
             <div className="flex flex-col items-center justify-center text-center">
               <div className="relative mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-                  <Sparkles className="w-7 h-7 text-[#4F6DF5]" />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#f0ede8] to-gray-100 flex items-center justify-center">
+                  <Sparkles className="w-7 h-7 text-[#1a1a1a]" />
                 </div>
-                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#4F6DF5] animate-[rotate_1.2s_linear_infinite]" />
+                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#1a1a1a] animate-[rotate_1.2s_linear_infinite]" />
               </div>
               <p className="text-gray-700 font-medium mb-1">AI is writing...</p>
               <p className="text-gray-400 text-sm">The article will appear here in real-time</p>
@@ -264,11 +264,11 @@ export default function ArticlePage() {
         {/* TITLE section */}
         {parsedOutput?.title && (
           <GlassCard className="overflow-hidden animate-fade-in">
-            <div className="h-1 bg-gradient-to-r from-[#4F6DF5] to-[#7C5BF5]" />
+            <div className="h-1 bg-gradient-to-r from-[#1a1a1a] to-[#333]" />
             <div className="p-5 sm:p-6">
               <div className="flex items-center justify-between mb-3">
-                <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#4F6DF5] uppercase tracking-[0.08em]">
-                  <span className="w-2 h-2 rounded-full bg-[#4F6DF5]" />Title
+                <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#1a1a1a] uppercase tracking-[0.08em]">
+                  <span className="w-2 h-2 rounded-full bg-[#1a1a1a]" />Title
                 </p>
                 {done && (
                   <button onClick={() => copySection(parsedOutput.title, "title")} className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
@@ -290,8 +290,8 @@ export default function ArticlePage() {
         {parsedOutput?.content && (
           <GlassCard className="p-5 sm:p-6 animate-fade-in">
             <div className="flex items-center justify-between mb-3">
-              <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#4F6DF5] uppercase tracking-[0.08em]">
-                <span className="w-2 h-2 rounded-full bg-[#4F6DF5]" />Content
+              <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#1a1a1a] uppercase tracking-[0.08em]">
+                <span className="w-2 h-2 rounded-full bg-[#1a1a1a]" />Content
                 {streaming && <Loader2 className="w-3 h-3 animate-spin text-gray-400 ml-2" />}
               </p>
               {done && (

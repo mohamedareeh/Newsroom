@@ -9,25 +9,19 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Newspaper,
   Rss,
   Link2,
-  Settings2,
   Sparkles,
   Loader2,
-  LogOut,
   AlertCircle,
   ChevronDown,
   ExternalLink,
   RefreshCw,
   Clock,
   CheckCircle2,
-  LayoutDashboard,
-  PenTool,
-  Share2,
-  Languages,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
+import BottomNav from "@/components/BottomNav";
 import { useSettings } from "@/lib/useSettings";
 import { DHIVEHI_NEWS_SOURCES, NewsSource } from "@/lib/config";
 
@@ -255,8 +249,8 @@ export default function Dashboard() {
   // ── Loading state ──
   if (!loaded || !sourcesLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
-        <Loader2 className="w-8 h-8 text-[#4F6DF5] animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
+        <Loader2 className="w-8 h-8 text-[#1a1a1a] animate-spin" />
       </div>
     );
   }
@@ -273,376 +267,286 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen flex bg-[#f0f2f5]">
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* SIDEBAR                                                 */}
-      {/* ════════════════════════════════════════════════════════ */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-gradient-to-b from-[#1B2332] to-[#141B27] text-white min-h-screen sticky top-0">
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/[0.06]">
-          <div className="p-2.5 bg-gradient-to-br from-[#4F6DF5] to-[#7C5BF5] rounded-xl">
-            <Newspaper className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight">Creative Network</h1>
-            <p className="text-[10px] text-white/30">News Desk</p>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 px-4 py-6 space-y-1">
-          <Link
-            href="/"
-            className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.08] text-[#8BA3F9] text-sm font-medium"
-          >
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#4F6DF5] rounded-r-full" />
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </Link>
-          <Link
-            href="/writer"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <PenTool className="w-4 h-4" />
-            AI Writer
-          </Link>
-          <Link
-            href="/translate"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <Languages className="w-4 h-4" />
-            Translate
-          </Link>
-          <Link
-            href="/social"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <Share2 className="w-4 h-4" />
-            Social Media
-          </Link>
-          <Link
-            href="/settings"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <Settings2 className="w-4 h-4" />
-            Settings
-          </Link>
-        </nav>
-
-        {/* Logout */}
-        <div className="px-4 py-4 border-t border-white/[0.06]">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/40 hover:bg-white/[0.04] hover:text-red-400 text-sm transition-all duration-200"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
-        </div>
-      </aside>
-
+    <div className="min-h-screen bg-[#f5f3f0] pb-20 lg:pb-0">
       {/* ════════════════════════════════════════════════════════ */}
       {/* MAIN CONTENT                                            */}
       {/* ════════════════════════════════════════════════════════ */}
-      <main className="flex-1 min-w-0">
-        {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60 sticky top-0 z-50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-[#4F6DF5] to-[#7C5BF5] rounded-xl">
-              <Newspaper className="w-4 h-4 text-white" />
-            </div>
-            <h1 className="text-sm font-bold text-gray-900">Creative Network</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <Link href="/settings" className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200">
-              <Settings2 className="w-4 h-4 text-gray-400" />
-            </Link>
-            <button onClick={handleLogout} className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200">
-              <LogOut className="w-4 h-4 text-gray-400" />
-            </button>
-          </div>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        {/* ── Page Header ── */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-[#1a1a1a] tracking-tight">Good to see you</h2>
+          <p className="text-sm text-gray-400 mt-1">AI-Powered Dhivehi News Engine</p>
         </div>
 
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-          {/* ── Page Title ── */}
-          <div className="mb-4 sm:mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h2>
-            <p className="text-sm text-gray-400">AI-Powered Dhivehi News Engine</p>
+        {/* ── Auto-Scrape Status Bar ── */}
+        {settings.autoScrapeInterval !== "disabled" && (
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Auto-scrape: every {settings.autoScrapeInterval} min</span>
+              {lastAutoScrape && (
+                <span className="text-gray-400">
+                  Last: {lastAutoScrape.toLocaleTimeString()}
+                </span>
+              )}
+              {autoScraping && (
+                <span className="flex items-center gap-1.5 text-[#1a1a1a]">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Scraping...
+                </span>
+              )}
+            </div>
+            <button
+              onClick={autoScrapeAll}
+              disabled={autoScraping}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3 h-3 ${autoScraping ? "animate-spin" : ""}`} />
+              Scrape All Now
+            </button>
           </div>
+        )}
 
-          {/* ── Auto-Scrape Status Bar ── */}
-          {settings.autoScrapeInterval !== "disabled" && (
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Auto-scrape: every {settings.autoScrapeInterval} min</span>
-                {lastAutoScrape && (
-                  <span className="text-gray-400">
-                    Last: {lastAutoScrape.toLocaleTimeString()}
-                  </span>
-                )}
-                {autoScraping && (
-                  <span className="flex items-center gap-1.5 text-[#4F6DF5]">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Scraping...
-                  </span>
+        <div className="space-y-8">
+          {/* ════════════════════════════════════════════════ */}
+          {/* NEWS DISCOVERY                                   */}
+          {/* ════════════════════════════════════════════════ */}
+          <GlassCard className="p-4 sm:p-6">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+              News Discovery
+            </h2>
+
+            {/* Tab buttons — segmented control */}
+            <div className="flex gap-1 p-1 bg-[#f0ede8] rounded-xl mb-5 overflow-x-auto scrollbar-hide">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 flex-shrink-0 ${
+                    activeTab === tab.id
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Fetch Headlines Tab (merged RSS + scrape) ── */}
+            {activeTab === "sources" && (
+              <div className="space-y-3">
+                {enabledSources.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">
+                    No sources configured.{" "}
+                    <Link href="/settings" className="text-[#1a1a1a] hover:underline">
+                      Configure in Settings
+                    </Link>
+                  </p>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <select
+                        value={selectedSource || enabledSources[0]?.id || ""}
+                        onChange={(e) => setSelectedSource(e.target.value)}
+                        className="w-full appearance-none bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:bg-white focus:border-[#1a1a1a] transition-all cursor-pointer"
+                      >
+                        {enabledSources.map((source) => (
+                          <option key={source.id} value={source.id}>
+                            {source.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                    <button
+                      onClick={fetchSource}
+                      disabled={headlinesLoading}
+                      className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
+                      Fetch Headlines
+                    </button>
+                  </>
                 )}
               </div>
+            )}
+
+            {/* ── Manual Link Tab ── */}
+            {activeTab === "manual" && (
+              <div className="space-y-3">
+                <input
+                  type="url"
+                  value={manualUrl}
+                  onChange={(e) => setManualUrl(e.target.value)}
+                  placeholder="Paste article URL here..."
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#333] transition-all"
+                />
+                <button
+                  onClick={() => manualUrl.trim() && processArticle(manualUrl)}
+                  disabled={processing || !manualUrl.trim()}
+                  className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
+                >
+                  {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  Process Article
+                </button>
+              </div>
+            )}
+
+            {/* ── Scrape All Now button (when auto-scrape is disabled) ── */}
+            {settings.autoScrapeInterval === "disabled" && (
               <button
                 onClick={autoScrapeAll}
                 disabled={autoScraping}
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+                className="w-full mt-4 flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 font-medium py-2.5 rounded-xl transition-all disabled:opacity-50 text-sm"
               >
-                <RefreshCw className={`w-3 h-3 ${autoScraping ? "animate-spin" : ""}`} />
-                Scrape All Now
+                <RefreshCw className={`w-3.5 h-3.5 ${autoScraping ? "animate-spin" : ""}`} />
+                Scrape All Sources
               </button>
-            </div>
-          )}
+            )}
+          </GlassCard>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* ════════════════════════════════════════════════ */}
-            {/* LEFT COLUMN: Input System + AI Summary          */}
-            {/* ════════════════════════════════════════════════ */}
-            <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-              {/* ── Tri-Mode Input Tabs ── */}
-              <GlassCard className="p-4 sm:p-6">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-                  News Discovery
+          {/* ════════════════════════════════════════════════ */}
+          {/* HEADLINES + AI OUTPUT                            */}
+          {/* ════════════════════════════════════════════════ */}
+
+          {/* ── Headlines List ── */}
+          {(visibleHeadlines.length > 0 || headlinesLoading || headlinesError) && (
+            <GlassCard className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  Discovered Headlines
+                  {headlines.length > 0 && (
+                    <span className="ml-2 text-xs text-gray-400 font-normal">
+                      ({visibleHeadlines.length}
+                      {settings.autoExcludeProcessed && headlines.length !== visibleHeadlines.length && (
+                        <>, {headlines.length - visibleHeadlines.length} hidden</>
+                      )}
+                      )
+                    </span>
+                  )}
                 </h2>
-
-                {/* Tab buttons — segmented control */}
-                <div className="flex gap-1 p-1 bg-gray-100/80 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 flex-shrink-0 ${
-                        activeTab === tab.id
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      {tab.icon}
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* ── Fetch Headlines Tab (merged RSS + scrape) ── */}
-                {activeTab === "sources" && (
-                  <div className="space-y-3">
-                    {enabledSources.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-4">
-                        No sources configured.{" "}
-                        <Link href="/settings" className="text-[#4F6DF5] hover:underline">
-                          Configure in Settings
-                        </Link>
-                      </p>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <select
-                            value={selectedSource || enabledSources[0]?.id || ""}
-                            onChange={(e) => setSelectedSource(e.target.value)}
-                            className="w-full appearance-none bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:bg-white focus:border-[#4F6DF5] transition-all cursor-pointer"
-                          >
-                            {enabledSources.map((source) => (
-                              <option key={source.id} value={source.id}>
-                                {source.label}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                        </div>
-                        <button
-                          onClick={fetchSource}
-                          disabled={headlinesLoading}
-                          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
-                        >
-                          {headlinesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rss className="w-4 h-4" />}
-                          Fetch Headlines
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Manual Link Tab ── */}
-                {activeTab === "manual" && (
-                  <div className="space-y-3">
-                    <input
-                      type="url"
-                      value={manualUrl}
-                      onChange={(e) => setManualUrl(e.target.value)}
-                      placeholder="Paste article URL here..."
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 transition-all"
-                    />
-                    <button
-                      onClick={() => manualUrl.trim() && processArticle(manualUrl)}
-                      disabled={processing || !manualUrl.trim()}
-                      className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white font-medium py-3 rounded-xl transition-all disabled:opacity-50"
-                    >
-                      {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                      Process Article
-                    </button>
-                  </div>
-                )}
-
-                {/* ── Scrape All Now button (when auto-scrape is disabled) ── */}
-                {settings.autoScrapeInterval === "disabled" && (
+                {headlines.length > 0 && (
                   <button
-                    onClick={autoScrapeAll}
-                    disabled={autoScraping}
-                    className="w-full mt-4 flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 font-medium py-2.5 rounded-xl transition-all disabled:opacity-50 text-sm"
+                    onClick={() => setHeadlines([])}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${autoScraping ? "animate-spin" : ""}`} />
-                    Scrape All Sources
+                    Clear
                   </button>
                 )}
-              </GlassCard>
+              </div>
 
-            </div>
+              {headlinesError && (
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-sm mb-3">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {headlinesError}
+                </div>
+              )}
 
-            {/* ════════════════════════════════════════════════ */}
-            {/* RIGHT COLUMN: Headlines + AI Output             */}
-            {/* ════════════════════════════════════════════════ */}
-            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              {/* ── Headlines List ── */}
-              {(visibleHeadlines.length > 0 || headlinesLoading || headlinesError) && (
-                <GlassCard className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                      Discovered Headlines
-                      {headlines.length > 0 && (
-                        <span className="ml-2 text-xs text-gray-400 font-normal">
-                          ({visibleHeadlines.length}
-                          {settings.autoExcludeProcessed && headlines.length !== visibleHeadlines.length && (
-                            <>, {headlines.length - visibleHeadlines.length} hidden</>
-                          )}
-                          )
-                        </span>
-                      )}
-                    </h2>
-                    {headlines.length > 0 && (
-                      <button
-                        onClick={() => setHeadlines([])}
-                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
+              {headlinesLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-[#1a1a1a] animate-spin" />
+                  <span className="ml-3 text-gray-500 text-sm">Scanning feeds...</span>
+                </div>
+              )}
 
-                  {headlinesError && (
-                    <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-sm mb-3">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      {headlinesError}
-                    </div>
-                  )}
-
-                  {headlinesLoading && (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 text-[#4F6DF5] animate-spin" />
-                      <span className="ml-3 text-gray-500 text-sm">Scanning feeds...</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                    {visibleHeadlines.map((h, i) => (
-                      <div
-                        key={`${h.link}-${i}`}
-                        className={`p-4 border rounded-xl transition-all duration-200 group animate-fade-in ${
-                          h.alreadyProcessed
-                            ? "bg-gray-50/80 border-gray-100 opacity-60"
-                            : "bg-white hover:bg-gray-50/50 border-gray-200/60 border-l-[3px] border-l-[#4F6DF5]"
-                        }`}
-                        style={{ animationDelay: `${i * 40}ms` }}
-                      >
-                        <div className="mb-2">
-                          <p className="text-sm text-gray-700 leading-snug">{h.title}</p>
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            {h.sourceLabel && (
-                              <span className="text-[11px] font-medium text-blue-600 px-2 py-0.5 bg-blue-50 rounded-full">{h.sourceLabel}</span>
-                            )}
-                            {h.pubDate && (
-                              <span className="text-xs text-gray-400">
-                                {new Date(h.pubDate).toLocaleDateString()}
-                              </span>
-                            )}
-                            {h.alreadyProcessed && (
-                              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-600">
-                                <CheckCircle2 className="w-2.5 h-2.5" />
-                                Processed
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => processArticle(h.link)}
-                            disabled={processing}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
-                          >
-                            {processing && processingUrl === h.link ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Sparkles className="w-3 h-3" />
-                            )}
-                            Process
-                          </button>
-                          <a
-                            href={h.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                            title="Open original"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {visibleHeadlines.map((h, i) => (
+                  <div
+                    key={`${h.link}-${i}`}
+                    className={`p-4 border rounded-xl transition-all duration-200 group animate-fade-in ${
+                      h.alreadyProcessed
+                        ? "bg-gray-50/80 border-gray-100 opacity-60"
+                        : "bg-white hover:bg-gray-50/50 border-gray-200/60 border-l-[3px] border-l-[#1a1a1a]"
+                    }`}
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    <div className="mb-2">
+                      <p className="text-sm text-gray-700 leading-snug">{h.title}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        {h.sourceLabel && (
+                          <span className="text-[11px] font-medium text-gray-600 px-2 py-0.5 bg-gray-100 rounded-full">{h.sourceLabel}</span>
+                        )}
+                        {h.pubDate && (
+                          <span className="text-xs text-gray-400">
+                            {new Date(h.pubDate).toLocaleDateString()}
+                          </span>
+                        )}
+                        {h.alreadyProcessed && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-600">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            Processed
+                          </span>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </GlassCard>
-              )}
-
-              {/* ── Error Display ── */}
-              {processError && (
-                <GlassCard className="p-6 animate-fade-in">
-                  <div className="flex items-start gap-3 text-red-600">
-                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Processing Failed</p>
-                      <p className="text-sm text-red-500 mt-1">{processError}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => processArticle(h.link)}
+                        disabled={processing}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+                      >
+                        {processing && processingUrl === h.link ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                        Process
+                      </button>
+                      <a
+                        href={h.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Open original"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
                     </div>
                   </div>
-                </GlassCard>
-              )}
+                ))}
+              </div>
+            </GlassCard>
+          )}
 
-              {/* ── Empty State ── */}
-              {!processing && !processError && visibleHeadlines.length === 0 && !headlinesLoading && (
-                <GlassCard className="p-12">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="relative p-5 bg-gray-50 rounded-3xl mb-5">
-                      <Newspaper className="w-12 h-12 text-gray-300 relative z-10" />
-                      <div className="ripple-ring" />
-                      <div className="ripple-ring" style={{ animationDelay: "0.8s" }} />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">
-                      Ready to Discover News
-                    </h3>
-                    <p className="text-sm text-gray-400 max-w-sm">
-                      {settings.autoScrapeInterval !== "disabled"
-                        ? "Auto-scrape is enabled. Headlines will appear shortly."
-                        : "Select an RSS feed, scrape a homepage, or paste a direct article link to get started."}
-                    </p>
-                  </div>
-                </GlassCard>
-              )}
-            </div>
-          </div>
+          {/* ── Error Display ── */}
+          {processError && (
+            <GlassCard className="p-6 animate-fade-in">
+              <div className="flex items-start gap-3 text-red-600">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Processing Failed</p>
+                  <p className="text-sm text-red-500 mt-1">{processError}</p>
+                </div>
+              </div>
+            </GlassCard>
+          )}
+
+          {/* ── Empty State ── */}
+          {!processing && !processError && visibleHeadlines.length === 0 && !headlinesLoading && (
+            <GlassCard className="p-12">
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="relative p-5 bg-[#f0ede8] rounded-3xl mb-5">
+                  <Rss className="w-12 h-12 text-gray-300 relative z-10" />
+                  <div className="ripple-ring" />
+                  <div className="ripple-ring" style={{ animationDelay: "0.8s" }} />
+                </div>
+                <h3 className="text-lg font-medium text-gray-500 mb-2">
+                  Ready to Discover News
+                </h3>
+                <p className="text-sm text-gray-400 max-w-sm">
+                  {settings.autoScrapeInterval !== "disabled"
+                    ? "Auto-scrape is enabled. Headlines will appear shortly."
+                    : "Select an RSS feed, scrape a homepage, or paste a direct article link to get started."}
+                </p>
+              </div>
+            </GlassCard>
+          )}
         </div>
       </main>
+
+      <BottomNav />
     </div>
   );
 }

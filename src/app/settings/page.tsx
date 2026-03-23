@@ -5,11 +5,7 @@
 // auto-scrape, WordPress publishing, and general preferences.
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowLeft,
-  Newspaper,
   Rss,
   Globe,
   Sparkles,
@@ -33,16 +29,12 @@ import {
   Loader2,
   FileText,
   RotateCcw,
-  LayoutDashboard,
   Settings2,
-  LogOut,
-  PenTool,
-  Share2,
-  Languages,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import GlassSelect from "@/components/GlassSelect";
 import GlassToggle from "@/components/GlassToggle";
+import BottomNav from "@/components/BottomNav";
 import { useSettings } from "@/lib/useSettings";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import {
@@ -54,7 +46,6 @@ import {
 } from "@/lib/config";
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { settings, updateSettings, loaded } = useSettings();
   const { isAdmin: userIsAdmin, loaded: userLoaded } = useCurrentUser();
 
@@ -160,17 +151,10 @@ export default function SettingsPage() {
     } catch { setUserError("Network error"); }
   };
 
-  // Logout handler
-  const handleLogout = useCallback(async () => {
-    await fetch("/api/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }, [router]);
-
   if (!loaded || !userLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5]">
-        <Loader2 className="w-8 h-8 text-[#5D87FF] animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
+        <Loader2 className="w-8 h-8 text-[#1a1a1a] animate-spin" />
       </div>
     );
   }
@@ -282,713 +266,634 @@ export default function SettingsPage() {
   };
 
   // Common input class
-  const inputCls = "w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#4F6DF5] focus:ring-2 focus:ring-[#4F6DF5]/10 transition-all duration-200";
+  const inputCls = "w-full bg-[#f5f3f0] border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] focus:outline-none focus:bg-white focus:border-[#1a1a1a] focus:ring-2 focus:ring-black/5 transition-all";
 
   return (
-    <div className="min-h-screen flex bg-[#f0f2f5]">
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* SIDEBAR                                                 */}
-      {/* ════════════════════════════════════════════════════════ */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-gradient-to-b from-[#1B2332] to-[#141B27] text-white min-h-screen sticky top-0">
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/[0.06]">
-          <div className="p-2.5 bg-gradient-to-br from-[#4F6DF5] to-[#7C5BF5] rounded-xl">
-            <Newspaper className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight">Creative Network</h1>
-            <p className="text-[10px] text-white/30">News Desk</p>
-          </div>
-        </div>
-        <nav className="flex-1 px-4 py-6 space-y-1">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </Link>
-          <Link
-            href="/writer"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <PenTool className="w-4 h-4" />
-            AI Writer
-          </Link>
-          <Link
-            href="/translate"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <Languages className="w-4 h-4" />
-            Translate
-          </Link>
-          <Link
-            href="/social"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
-          >
-            <Share2 className="w-4 h-4" />
-            Social Media
-          </Link>
-          <Link
-            href="/settings"
-            className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.08] text-[#8BA3F9] text-sm font-medium"
-          >
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#4F6DF5] rounded-r-full" />
-            <Settings2 className="w-4 h-4" />
-            Settings
-          </Link>
-        </nav>
-        <div className="px-4 py-4 border-t border-white/[0.06]">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/40 hover:bg-white/[0.04] hover:text-red-400 text-sm transition-all duration-200"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* MAIN CONTENT                                            */}
-      {/* ════════════════════════════════════════════════════════ */}
-      <main className="flex-1 min-w-0">
-        {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60 sticky top-0 z-50">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/")}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-500" />
-            </button>
-            <h1 className="text-sm font-bold text-gray-900">Settings</h1>
-          </div>
-          <button onClick={handleLogout} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <LogOut className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Page Title */}
-          <div className="mb-6">
+    <div className="min-h-screen bg-[#f5f3f0] pb-20 lg:pb-0">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        {/* Page Title */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Settings2 className="w-5 h-5 text-[#1a1a1a]" />
             <h2 className="text-xl font-bold text-gray-900">Settings</h2>
-            <p className="text-sm text-gray-500">Manage sources, AI, auto-scrape & WordPress</p>
           </div>
+          <p className="text-sm text-gray-500">Manage sources, AI, auto-scrape & WordPress</p>
+        </div>
 
-          <div className="space-y-6">
-            {/* ════════════════════════════════════════════════════ */}
-            {/* User Management (Admin Only)                         */}
-            {/* ════════════════════════════════════════════════════ */}
-            {userIsAdmin && (<>
-            <GlassCard className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Users className="w-4 h-4 text-indigo-500" />
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  User Management
-                </h2>
+        <div className="space-y-6">
+          {/* ════════════════════════════════════════════════════ */}
+          {/* User Management (Admin Only)                         */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (<>
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Users className="w-4 h-4 text-[#1a1a1a]" />
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                User Management
+              </h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">
+              Add or remove users who can log in to the dashboard.
+            </p>
+
+            {userError && (
+              <div className="flex items-center gap-2 p-2.5 mb-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {userError}
               </div>
-              <p className="text-xs text-gray-400 mb-4">
-                Add or remove users who can log in to the dashboard.
-              </p>
+            )}
 
-              {userError && (
-                <div className="flex items-center gap-2 p-2.5 mb-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  {userError}
+            {/* Current users */}
+            <div className="space-y-1.5 mb-5">
+              {usersLoading && users.length === 0 ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
                 </div>
-              )}
-
-              {/* Current users */}
-              <div className="space-y-1.5 mb-5">
-                {usersLoading && users.length === 0 ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
-                  </div>
-                ) : (
-                  users.map((u) => {
-                    return (
-                      <div
-                        key={u.username}
-                        className="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl"
-                      >
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm text-gray-700">{u.username}</p>
-                          {u.role === "admin" && (
-                            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px]">
-                              <Shield className="w-2.5 h-2.5" />
-                              Admin
-                            </span>
-                          )}
-                          {u.role === "user" && (
-                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">
-                              User
-                            </span>
-                          )}
-                        </div>
-                        {u.role !== "admin" && (
-                          <button
-                            onClick={() => handleRemoveUser(u.username)}
-                            className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 transition-colors"
-                            title="Remove user"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Add user form */}
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Add User
-                </p>
-                <input
-                  type="text"
-                  placeholder="Username"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  className={inputCls}
-                />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className={inputCls}
-                />
-                <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as "admin" | "user")}
-                  className={inputCls}
-                >
-                  <option value="user">Regular User</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <button
-                  onClick={handleAddUser}
-                  disabled={!newUsername.trim() || !newPassword.trim() || userAdding}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  {userAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                  Add User
-                </button>
-              </div>
-            </GlassCard>
-            </>)}
-
-            {/* ════════════════════════════════════════════════════ */}
-            {/* Source Management (Admin Only)                       */}
-            {/* ════════════════════════════════════════════════════ */}
-            {userIsAdmin && (<>
-            <GlassCard className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-sky-500" />
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    News Sources
-                  </h2>
-                </div>
-                {shared.removedDefaultSourceIds.length > 0 && (
-                  <button
-                    onClick={restoreDefaults}
-                    className="text-xs text-[#5D87FF] hover:underline transition-colors"
-                  >
-                    Restore defaults
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-gray-400 mb-4">
-                Manage all news sources. Remove defaults or add custom websites.
-              </p>
-
-              {/* Current sources list */}
-              <div className="space-y-1.5 mb-5">
-                {effectiveSources.map((source) => {
-                  const isCustom = !DHIVEHI_NEWS_SOURCES.some((s) => s.id === source.id);
+              ) : (
+                users.map((u) => {
                   return (
                     <div
-                      key={source.id}
-                      className="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl"
+                      key={u.username}
+                      className="flex items-center justify-between gap-3 p-3 bg-[#f0ede8] border border-gray-200 rounded-xl"
                     >
-                      <div className="min-w-0">
-                        <p className="text-sm text-gray-700">
-                          {source.label}
-                          {isCustom && (
-                            <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-sky-50 text-sky-600 rounded-full">
-                              Custom
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">{source.scrapeUrl}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-gray-700">{u.username}</p>
+                        {u.role === "admin" && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 bg-[#f0ede8] text-[#1a1a1a] rounded text-[10px]">
+                            <Shield className="w-2.5 h-2.5" />
+                            Admin
+                          </span>
+                        )}
+                        {u.role === "user" && (
+                          <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">
+                            User
+                          </span>
+                        )}
                       </div>
-                      <button
-                        onClick={() => removeSource(source)}
-                        className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 transition-colors"
-                        title="Remove source"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {u.role !== "admin" && (
+                        <button
+                          onClick={() => handleRemoveUser(u.username)}
+                          className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                          title="Remove user"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
-                })}
-              </div>
+                })
+              )}
+            </div>
 
-              {/* Add custom source form */}
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Add Custom Source
-                </p>
-                <input
-                  type="text"
-                  placeholder="Source name (e.g. MyNews)"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  className={inputCls}
-                />
-                <input
-                  type="url"
-                  placeholder="RSS Feed URL (optional)"
-                  value={newRssUrl}
-                  onChange={(e) => setNewRssUrl(e.target.value)}
-                  className={inputCls}
-                />
-                <input
-                  type="url"
-                  placeholder="Website URL (required)"
-                  value={newScrapeUrl}
-                  onChange={(e) => setNewScrapeUrl(e.target.value)}
-                  className={inputCls}
-                />
+            {/* Add user form */}
+            <div className="p-4 bg-[#f0ede8] border border-gray-200 rounded-xl space-y-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Add User
+              </p>
+              <input
+                type="text"
+                placeholder="Username"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                className={inputCls}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className={inputCls}
+              />
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value as "admin" | "user")}
+                className={inputCls}
+              >
+                <option value="user">Regular User</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button
+                onClick={handleAddUser}
+                disabled={!newUsername.trim() || !newPassword.trim() || userAdding}
+                className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#333] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {userAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                Add User
+              </button>
+            </div>
+          </GlassCard>
+          </>)}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* Source Management (Admin Only)                       */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (<>
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-sky-500" />
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  News Sources
+                </h2>
+              </div>
+              {shared.removedDefaultSourceIds.length > 0 && (
                 <button
-                  onClick={addCustomSource}
-                  disabled={!newLabel.trim() || !newScrapeUrl.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  onClick={restoreDefaults}
+                  className="text-xs text-[#1a1a1a] hover:underline transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
-                  Add Source
+                  Restore defaults
                 </button>
-              </div>
-            </GlassCard>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mb-4">
+              Manage all news sources. Remove defaults or add custom websites.
+            </p>
 
-            {/* ════════════════════════════════════════════════════ */}
-            {/* Source Enable/Disable Toggles (Admin Only)           */}
-            {/* ════════════════════════════════════════════════════ */}
-            <GlassCard className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <Rss className="w-4 h-4 text-orange-500" />
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    Enabled Sources
-                  </h2>
-                </div>
+            {/* Current sources list */}
+            <div className="space-y-1.5 mb-5">
+              {effectiveSources.map((source) => {
+                const isCustom = !DHIVEHI_NEWS_SOURCES.some((s) => s.id === source.id);
+                return (
+                  <div
+                    key={source.id}
+                    className="flex items-center justify-between gap-3 p-3 bg-[#f0ede8] border border-gray-200 rounded-xl"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-700">
+                        {source.label}
+                        {isCustom && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-sky-50 text-sky-600 rounded-full">
+                            Custom
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">{source.scrapeUrl}</p>
+                    </div>
+                    <button
+                      onClick={() => removeSource(source)}
+                      className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                      title="Remove source"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add custom source form */}
+            <div className="p-4 bg-[#f0ede8] border border-gray-200 rounded-xl space-y-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Add Custom Source
+              </p>
+              <input
+                type="text"
+                placeholder="Source name (e.g. MyNews)"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                className={inputCls}
+              />
+              <input
+                type="url"
+                placeholder="RSS Feed URL (optional)"
+                value={newRssUrl}
+                onChange={(e) => setNewRssUrl(e.target.value)}
+                className={inputCls}
+              />
+              <input
+                type="url"
+                placeholder="Website URL (required)"
+                value={newScrapeUrl}
+                onChange={(e) => setNewScrapeUrl(e.target.value)}
+                className={inputCls}
+              />
+              <button
+                onClick={addCustomSource}
+                disabled={!newLabel.trim() || !newScrapeUrl.trim()}
+                className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#333] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-4 h-4" />
+                Add Source
+              </button>
+            </div>
+          </GlassCard>
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* Source Enable/Disable Toggles (Admin Only)           */}
+          {/* ════════════════════════════════════════════════════ */}
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Rss className="w-4 h-4 text-orange-500" />
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  Enabled Sources
+                </h2>
+              </div>
+              <button
+                onClick={toggleAllSources}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {allEnabled ? <ToggleRight className="w-4 h-4 text-[#1a1a1a]" /> : <ToggleLeft className="w-4 h-4" />}
+                {allEnabled ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {effectiveSources.map((source) => (
+                <GlassToggle
+                  key={source.id}
+                  label={source.label}
+                  description={source.rssUrl || source.scrapeUrl}
+                  checked={isSourceEnabled(source.id)}
+                  onChange={() => toggleSource(source.id)}
+                />
+              ))}
+            </div>
+          </GlassCard>
+          </>)}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* AI Settings (visible to all)                         */}
+          {/* ════════════════════════════════════════════════════ */}
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                AI Spin Engine
+              </h2>
+            </div>
+            <div className="space-y-4">
+              <GlassSelect
+                label="Rewrite Model"
+                value={shared.geminiModel || "gemini-2.5-flash"}
+                onChange={(v) => updateShared({ geminiModel: v })}
+                options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
+              />
+              <GlassSelect
+                label="AI Writer Model"
+                value={shared.composeModel || "gemini-2.5-flash"}
+                onChange={(v) => updateShared({ composeModel: v })}
+                options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
+              />
+              <GlassSelect
+                label="Paraphrasing Level"
+                value={settings.paraphrasingLevel}
+                onChange={(v) => updateSettings({ paraphrasingLevel: v as "light" | "heavy" })}
+                options={[
+                  { label: "Heavy Rewrite", value: "heavy" },
+                  { label: "Light Touch", value: "light" },
+                ]}
+              />
+              <GlassSelect
+                label="Tone"
+                value={settings.tone}
+                onChange={(v) => updateSettings({ tone: v as "formal" | "casual" | "sensational" })}
+                options={[
+                  { label: "Formal", value: "formal" },
+                  { label: "Casual", value: "casual" },
+                  { label: "Sensational", value: "sensational" },
+                ]}
+              />
+              <GlassSelect
+                label="Output Length"
+                value={settings.length}
+                onChange={(v) => updateSettings({ length: v as "match" | "summary" })}
+                options={[
+                  { label: "Match Original", value: "match" },
+                  { label: "Bullet Point Summary", value: "summary" },
+                ]}
+              />
+            </div>
+          </GlassCard>
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* AI Prompt Template (Admin Only)                       */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (<>
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-purple-500" />
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  AI Prompt Template
+                </h2>
+              </div>
+              {shared.promptTemplate && (
                 <button
-                  onClick={toggleAllSources}
+                  onClick={() => updateShared({ promptTemplate: "" })}
                   className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {allEnabled ? <ToggleRight className="w-4 h-4 text-blue-500" /> : <ToggleLeft className="w-4 h-4" />}
-                  {allEnabled ? "Deselect All" : "Select All"}
+                  <RotateCcw className="w-3 h-3" />
+                  Reset to Default
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              Customize the prompt sent to Gemini. Use placeholders:{" "}
+              <code className="px-1 py-0.5 bg-[#f0ede8] rounded text-[11px] text-gray-600">{"{{paraphrasingInstructions}}"}</code>{" "}
+              <code className="px-1 py-0.5 bg-[#f0ede8] rounded text-[11px] text-gray-600">{"{{toneInstructions}}"}</code>{" "}
+              <code className="px-1 py-0.5 bg-[#f0ede8] rounded text-[11px] text-gray-600">{"{{lengthInstructions}}"}</code>{" "}
+              <code className="px-1 py-0.5 bg-[#f0ede8] rounded text-[11px] text-gray-600">{"{{title}}"}</code>{" "}
+              <code className="px-1 py-0.5 bg-[#f0ede8] rounded text-[11px] text-gray-600">{"{{articleText}}"}</code>
+            </p>
+            <textarea
+              value={shared.promptTemplate || DEFAULT_PROMPT_TEMPLATE}
+              onChange={(e) => updateShared({ promptTemplate: e.target.value })}
+              rows={12}
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 font-mono placeholder:text-gray-400 focus:outline-none focus:border-[#1a1a1a] focus:ring-1 focus:ring-black/10 transition-all resize-y"
+            />
+            <p className="mt-2 text-[11px] text-gray-400">
+              Leave empty or reset to use the built-in default prompt.
+            </p>
+          </GlassCard>
+          </>)}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* API Keys (Admin Only)                                */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (<>
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Key className="w-4 h-4 text-violet-500" />
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                API Keys
+              </h2>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Gemini API Key
+              </label>
+              <div className="relative">
+                <input
+                  type={showGeminiKey ? "text" : "password"}
+                  value={shared.geminiApiKey}
+                  onChange={(e) => updateShared({ geminiApiKey: e.target.value })}
+                  placeholder="Enter your Gemini API key"
+                  className={`${inputCls} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <div className="space-y-1.5">
-                {effectiveSources.map((source) => (
-                  <GlassToggle
-                    key={source.id}
-                    label={source.label}
-                    description={source.rssUrl || source.scrapeUrl}
-                    checked={isSourceEnabled(source.id)}
-                    onChange={() => toggleSource(source.id)}
-                  />
-                ))}
-              </div>
-            </GlassCard>
-            </>)}
-
-            {/* ════════════════════════════════════════════════════ */}
-            {/* AI Settings (visible to all)                         */}
-            {/* ════════════════════════════════════════════════════ */}
-            <GlassCard className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  AI Spin Engine
-                </h2>
-              </div>
-              <div className="space-y-4">
-                <GlassSelect
-                  label="Rewrite Model"
-                  value={shared.geminiModel || "gemini-2.5-flash"}
-                  onChange={(v) => updateShared({ geminiModel: v })}
-                  options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
-                />
-                <GlassSelect
-                  label="AI Writer Model"
-                  value={shared.composeModel || "gemini-2.5-flash"}
-                  onChange={(v) => updateShared({ composeModel: v })}
-                  options={GEMINI_MODELS.map((m) => ({ label: m.label, value: m.value }))}
-                />
-                <GlassSelect
-                  label="Paraphrasing Level"
-                  value={settings.paraphrasingLevel}
-                  onChange={(v) => updateSettings({ paraphrasingLevel: v as "light" | "heavy" })}
-                  options={[
-                    { label: "Heavy Rewrite", value: "heavy" },
-                    { label: "Light Touch", value: "light" },
-                  ]}
-                />
-                <GlassSelect
-                  label="Tone"
-                  value={settings.tone}
-                  onChange={(v) => updateSettings({ tone: v as "formal" | "casual" | "sensational" })}
-                  options={[
-                    { label: "Formal", value: "formal" },
-                    { label: "Casual", value: "casual" },
-                    { label: "Sensational", value: "sensational" },
-                  ]}
-                />
-                <GlassSelect
-                  label="Output Length"
-                  value={settings.length}
-                  onChange={(v) => updateSettings({ length: v as "match" | "summary" })}
-                  options={[
-                    { label: "Match Original", value: "match" },
-                    { label: "Bullet Point Summary", value: "summary" },
-                  ]}
-                />
-              </div>
-            </GlassCard>
-
-            {/* ════════════════════════════════════════════════════ */}
-            {/* AI Prompt Template (Admin Only)                       */}
-            {/* ════════════════════════════════════════════════════ */}
-            {userIsAdmin && (<>
-            <GlassCard className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-purple-500" />
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    AI Prompt Template
-                  </h2>
-                </div>
-                {shared.promptTemplate && (
-                  <button
-                    onClick={() => updateShared({ promptTemplate: "" })}
-                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Reset to Default
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-gray-400 mb-3">
-                Customize the prompt sent to Gemini. Use placeholders:{" "}
-                <code className="px-1 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600">{"{{paraphrasingInstructions}}"}</code>{" "}
-                <code className="px-1 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600">{"{{toneInstructions}}"}</code>{" "}
-                <code className="px-1 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600">{"{{lengthInstructions}}"}</code>{" "}
-                <code className="px-1 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600">{"{{title}}"}</code>{" "}
-                <code className="px-1 py-0.5 bg-gray-100 rounded text-[11px] text-gray-600">{"{{articleText}}"}</code>
+              <p className="text-[11px] text-gray-400">
+                Overrides the GEMINI_API_KEY environment variable when set.
               </p>
-              <textarea
-                value={shared.promptTemplate || DEFAULT_PROMPT_TEMPLATE}
-                onChange={(e) => updateShared({ promptTemplate: e.target.value })}
-                rows={12}
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 font-mono placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all resize-y"
+            </div>
+          </GlassCard>
+          </>)}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* General Preferences                                  */}
+          {/* ════════════════════════════════════════════════════ */}
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <SlidersHorizontal className="w-4 h-4 text-emerald-500" />
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                General
+              </h2>
+            </div>
+            <div className="space-y-4">
+              <GlassSelect
+                label="Default Headlines to Fetch"
+                value={String(settings.defaultHeadlineCount)}
+                onChange={(v) => updateSettings({ defaultHeadlineCount: parseInt(v) })}
+                options={[
+                  { label: "5 headlines", value: "5" },
+                  { label: "10 headlines", value: "10" },
+                  { label: "15 headlines", value: "15" },
+                  { label: "20 headlines", value: "20" },
+                ]}
               />
-              <p className="mt-2 text-[11px] text-gray-400">
-                Leave empty or reset to use the built-in default prompt.
-              </p>
-            </GlassCard>
-            </>)}
+              <GlassSelect
+                label="Auto-Scrape Interval"
+                value={settings.autoScrapeInterval}
+                onChange={(v) => updateSettings({ autoScrapeInterval: v as AutoScrapeInterval })}
+                options={[
+                  { label: "Disabled", value: "disabled" },
+                  { label: "Every 5 minutes", value: "5" },
+                  { label: "Every 15 minutes", value: "15" },
+                  { label: "Every 30 minutes", value: "30" },
+                  { label: "Every 60 minutes", value: "60" },
+                ]}
+              />
+              <GlassToggle
+                label="Auto-exclude processed articles"
+                description="Hide articles that were already processed in the last 48 hours"
+                checked={settings.autoExcludeProcessed}
+                onChange={(v) => updateSettings({ autoExcludeProcessed: v })}
+              />
+            </div>
+          </GlassCard>
 
-            {/* ════════════════════════════════════════════════════ */}
-            {/* API Keys (Admin Only)                                */}
-            {/* ════════════════════════════════════════════════════ */}
-            {userIsAdmin && (<>
-            <GlassCard className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Key className="w-4 h-4 text-violet-500" />
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  API Keys
-                </h2>
-              </div>
-              <div className="space-y-2">
+          {/* ════════════════════════════════════════════════════ */}
+          {/* WordPress Publishing (Admin Only)                    */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Send className="w-4 h-4 text-[#1a1a1a]" />
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                WordPress Publishing
+              </h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">
+              Connect to a WordPress site using Application Passwords to publish drafts directly.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Gemini API Key
+                  Site URL
+                </label>
+                <input
+                  type="url"
+                  value={shared.wordpress.siteUrl}
+                  onChange={(e) =>
+                    updateShared({ wordpress: { ...shared.wordpress, siteUrl: e.target.value } })
+                  }
+                  placeholder="https://yoursite.com"
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={shared.wordpress.username}
+                  onChange={(e) =>
+                    updateShared({ wordpress: { ...shared.wordpress, username: e.target.value } })
+                  }
+                  placeholder="admin"
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Application Password
                 </label>
                 <div className="relative">
                   <input
-                    type={showGeminiKey ? "text" : "password"}
-                    value={shared.geminiApiKey}
-                    onChange={(e) => updateShared({ geminiApiKey: e.target.value })}
-                    placeholder="Enter your Gemini API key"
+                    type={showWpPassword ? "text" : "password"}
+                    value={shared.wordpress.appPassword}
+                    onChange={(e) =>
+                      updateShared({ wordpress: { ...shared.wordpress, appPassword: e.target.value } })
+                    }
+                    placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
                     className={`${inputCls} pr-10`}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                    onClick={() => setShowWpPassword(!showWpPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showWpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-gray-400">
-                  Overrides the GEMINI_API_KEY environment variable when set.
-                </p>
               </div>
-            </GlassCard>
-            </>)}
 
-            {/* ════════════════════════════════════════════════════ */}
-            {/* General Preferences                                  */}
-            {/* ════════════════════════════════════════════════════ */}
-            <GlassCard className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <SlidersHorizontal className="w-4 h-4 text-emerald-500" />
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  General
-                </h2>
-              </div>
-              <div className="space-y-4">
-                <GlassSelect
-                  label="Default Headlines to Fetch"
-                  value={String(settings.defaultHeadlineCount)}
-                  onChange={(v) => updateSettings({ defaultHeadlineCount: parseInt(v) })}
-                  options={[
-                    { label: "5 headlines", value: "5" },
-                    { label: "10 headlines", value: "10" },
-                    { label: "15 headlines", value: "15" },
-                    { label: "20 headlines", value: "20" },
-                  ]}
-                />
-                <GlassSelect
-                  label="Auto-Scrape Interval"
-                  value={settings.autoScrapeInterval}
-                  onChange={(v) => updateSettings({ autoScrapeInterval: v as AutoScrapeInterval })}
-                  options={[
-                    { label: "Disabled", value: "disabled" },
-                    { label: "Every 5 minutes", value: "5" },
-                    { label: "Every 15 minutes", value: "15" },
-                    { label: "Every 30 minutes", value: "30" },
-                    { label: "Every 60 minutes", value: "60" },
-                  ]}
-                />
-                <GlassToggle
-                  label="Auto-exclude processed articles"
-                  description="Hide articles that were already processed in the last 48 hours"
-                  checked={settings.autoExcludeProcessed}
-                  onChange={(v) => updateSettings({ autoExcludeProcessed: v })}
-                />
-              </div>
-            </GlassCard>
-
-            {/* ════════════════════════════════════════════════════ */}
-            {/* WordPress Publishing (Admin Only)                    */}
-            {/* ════════════════════════════════════════════════════ */}
-            {userIsAdmin && (
-            <GlassCard className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Send className="w-4 h-4 text-blue-500" />
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  WordPress Publishing
-                </h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">
-                Connect to a WordPress site using Application Passwords to publish drafts directly.
-              </p>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Site URL
-                  </label>
-                  <input
-                    type="url"
-                    value={shared.wordpress.siteUrl}
-                    onChange={(e) =>
-                      updateShared({ wordpress: { ...shared.wordpress, siteUrl: e.target.value } })
-                    }
-                    placeholder="https://yoursite.com"
-                    className={inputCls}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    value={shared.wordpress.username}
-                    onChange={(e) =>
-                      updateShared({ wordpress: { ...shared.wordpress, username: e.target.value } })
-                    }
-                    placeholder="admin"
-                    className={inputCls}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Application Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showWpPassword ? "text" : "password"}
-                      value={shared.wordpress.appPassword}
-                      onChange={(e) =>
-                        updateShared({ wordpress: { ...shared.wordpress, appPassword: e.target.value } })
-                      }
-                      placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
-                      className={`${inputCls} pr-10`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowWpPassword(!showWpPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showWpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Test Connection */}
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    onClick={testWpConnection}
-                    disabled={wpTesting || !shared.wordpress.siteUrl || !shared.wordpress.username || !shared.wordpress.appPassword}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              {/* Test Connection */}
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={testWpConnection}
+                  disabled={wpTesting || !shared.wordpress.siteUrl || !shared.wordpress.username || !shared.wordpress.appPassword}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#333] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {wpTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
+                  Test Connection
+                </button>
+                {wpTestResult && (
+                  <span
+                    className={`flex items-center gap-1.5 text-xs ${
+                      wpTestResult.ok ? "text-green-600" : "text-red-500"
+                    }`}
                   >
-                    {wpTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
-                    Test Connection
+                    {wpTestResult.ok ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                    {wpTestResult.msg}
+                  </span>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+          )}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* Telegram Channel (Admin Only)                        */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <MessageCircle className="w-4 h-4 text-[#1a1a1a]" />
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                Telegram Channel
+              </h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">
+              Configure a Telegram bot to send social media images to your channel.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Bot Token
+                </label>
+                <div className="relative">
+                  <input
+                    type={showTelegramToken ? "text" : "password"}
+                    value={shared.telegram?.botToken || ""}
+                    onChange={(e) =>
+                      updateShared({ telegram: { ...shared.telegram, botToken: e.target.value } })
+                    }
+                    placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                    className={`${inputCls} pr-10`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTelegramToken(!showTelegramToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showTelegramToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                  {wpTestResult && (
-                    <span
-                      className={`flex items-center gap-1.5 text-xs ${
-                        wpTestResult.ok ? "text-green-600" : "text-red-500"
-                      }`}
-                    >
-                      {wpTestResult.ok ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                      {wpTestResult.msg}
-                    </span>
-                  )}
                 </div>
               </div>
-            </GlassCard>
-            )}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Chat ID
+                </label>
+                <input
+                  type="text"
+                  value={shared.telegram?.chatId || ""}
+                  onChange={(e) =>
+                    updateShared({ telegram: { ...shared.telegram, chatId: e.target.value } })
+                  }
+                  placeholder="-1001234567890"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+          </GlassCard>
+          )}
 
-            {/* ════════════════════════════════════════════════════ */}
-            {/* Telegram Channel (Admin Only)                        */}
-            {/* ════════════════════════════════════════════════════ */}
-            {userIsAdmin && (
-            <GlassCard className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <MessageCircle className="w-4 h-4 text-blue-500" />
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  Telegram Channel
-                </h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">
-                Configure a Telegram bot to send social media images to your channel.
-              </p>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Bot Token
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showTelegramToken ? "text" : "password"}
-                      value={shared.telegram?.botToken || ""}
-                      onChange={(e) =>
-                        updateShared({ telegram: { ...shared.telegram, botToken: e.target.value } })
-                      }
-                      placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-                      className={`${inputCls} pr-10`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowTelegramToken(!showTelegramToken)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showTelegramToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Chat ID
-                  </label>
+          {/* ════════════════════════════════════════════════════ */}
+          {/* Facebook Page (Admin Only)                           */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Facebook className="w-4 h-4 text-[#1a1a1a]" />
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                Facebook Page
+              </h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">
+              Post social media images to your Facebook Page using the Graph API.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Page Access Token
+                </label>
+                <div className="relative">
                   <input
-                    type="text"
-                    value={shared.telegram?.chatId || ""}
+                    type={showFacebookToken ? "text" : "password"}
+                    value={shared.facebook?.pageAccessToken || ""}
                     onChange={(e) =>
-                      updateShared({ telegram: { ...shared.telegram, chatId: e.target.value } })
+                      updateShared({ facebook: { ...shared.facebook, pageAccessToken: e.target.value } })
                     }
-                    placeholder="-1001234567890"
-                    className={inputCls}
+                    placeholder="EAAxxxxxxx..."
+                    className={`${inputCls} pr-10`}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowFacebookToken(!showFacebookToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showFacebookToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
-            </GlassCard>
-            )}
-
-            {/* ════════════════════════════════════════════════════ */}
-            {/* Facebook Page (Admin Only)                           */}
-            {/* ════════════════════════════════════════════════════ */}
-            {userIsAdmin && (
-            <GlassCard className="p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Facebook className="w-4 h-4 text-blue-600" />
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                  Facebook Page
-                </h2>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Page ID
+                </label>
+                <input
+                  type="text"
+                  value={shared.facebook?.pageId || ""}
+                  onChange={(e) =>
+                    updateShared({ facebook: { ...shared.facebook, pageId: e.target.value } })
+                  }
+                  placeholder="123456789012345"
+                  className={inputCls}
+                />
               </div>
-              <p className="text-xs text-gray-400 mb-5">
-                Post social media images to your Facebook Page using the Graph API.
-              </p>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Page Access Token
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showFacebookToken ? "text" : "password"}
-                      value={shared.facebook?.pageAccessToken || ""}
-                      onChange={(e) =>
-                        updateShared({ facebook: { ...shared.facebook, pageAccessToken: e.target.value } })
-                      }
-                      placeholder="EAAxxxxxxx..."
-                      className={`${inputCls} pr-10`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowFacebookToken(!showFacebookToken)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showFacebookToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Page ID
-                  </label>
-                  <input
-                    type="text"
-                    value={shared.facebook?.pageId || ""}
-                    onChange={(e) =>
-                      updateShared({ facebook: { ...shared.facebook, pageId: e.target.value } })
-                    }
-                    placeholder="123456789012345"
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-            </GlassCard>
-            )}
-          </div>
+            </div>
+          </GlassCard>
+          )}
         </div>
-      </main>
+      </div>
+      <BottomNav />
     </div>
   );
 }

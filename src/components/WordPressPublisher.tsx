@@ -91,7 +91,7 @@ export default function WordPressPublisher({
   }
 
   return (
-    <div className="space-y-3 p-4 bg-gray-50/80 border border-gray-200/60 rounded-xl">
+    <div className="space-y-3 p-4 bg-[#f5f3f0] border border-gray-200/60 rounded-xl">
       <h4 className="text-sm font-medium text-gray-700">Publish to WordPress</h4>
 
       {/* Category selector */}
@@ -100,7 +100,7 @@ export default function WordPressPublisher({
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(Number(e.target.value))}
           disabled={loading}
-          className="flex-1 appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all"
+          className="flex-1 appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[#1a1a1a] transition-all"
         >
           <option value={0}>No category</option>
           {categories.map((c) => (
@@ -113,7 +113,7 @@ export default function WordPressPublisher({
         <button
           onClick={handlePublish}
           disabled={publishing}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#4F6DF5] to-[#6C5BF5] hover:shadow-lg hover:shadow-blue-500/15 active:scale-[0.97] rounded-lg text-sm text-white transition-all duration-200 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#333] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] rounded-lg text-sm text-white transition-all duration-200 disabled:opacity-50"
         >
           {publishing ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -129,7 +129,7 @@ export default function WordPressPublisher({
         <div className="flex flex-wrap gap-1.5">
           <span className="text-[10px] text-gray-400 uppercase tracking-wider mr-1 self-center">Tags:</span>
           {tags.map((tag, i) => (
-            <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[11px] font-medium">
+            <span key={i} className="px-2 py-0.5 bg-[#f0ede8] text-[#1a1a1a] rounded-full text-[11px] font-medium">
               {tag}
             </span>
           ))}
