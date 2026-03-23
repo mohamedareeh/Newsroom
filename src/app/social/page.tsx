@@ -94,8 +94,8 @@ export default function SocialPage() {
     </head><body>
       <div id="container" style="
         width: 1500px; height: 1500px;
-        display: flex; align-items: center; justify-content: center;
-        padding: 120px 100px;
+        display: flex; align-items: flex-end; justify-content: center;
+        padding: 80px 100px;
         box-sizing: border-box;
       ">
         <div id="text" style="
