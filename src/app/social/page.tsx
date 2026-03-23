@@ -49,6 +49,7 @@ export default function SocialPage() {
   const [sendingFor, setSendingFor] = useState("");
   const [sentItems, setSentItems] = useState<Set<string>>(new Set());
   const [sendError, setSendError] = useState("");
+  const [socialTexts, setSocialTexts] = useState<Map<string, string>>(new Map());
 
   // ── Fetch RSS feed ──
   const fetchFeed = useCallback(async () => {
@@ -107,7 +108,9 @@ export default function SocialPage() {
       const dataUrl = generatedImages.get(item.link);
       if (!dataUrl) throw new Error("No generated image");
       const base64 = dataUrl.split(",")[1];
-      const caption = `${item.title}\n\n${item.link}`;
+      const customText = socialTexts.get(item.link);
+      const displayText = customText?.trim() || item.title;
+      const caption = `${displayText}\n\n${item.link}`;
       const res = await fetch("/api/telegram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,7 +124,7 @@ export default function SocialPage() {
     } finally {
       setSendingFor("");
     }
-  }, [generatedImages]);
+  }, [generatedImages, socialTexts]);
 
   // ── Logout handler ──
   const handleLogout = useCallback(async () => {
@@ -321,6 +324,19 @@ export default function SocialPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Social text field */}
+                  {imageGenerated && (
+                    <div className="mt-3">
+                      <textarea
+                        value={socialTexts.get(item.link) || ""}
+                        onChange={(e) => setSocialTexts((prev) => new Map(prev).set(item.link, e.target.value))}
+                        placeholder="Social media text (leave empty to use headline)"
+                        className="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#4F6DF5] transition-all resize-none dhivehi-output"
+                        rows={2}
+                      />
+                    </div>
+                  )}
 
                   {/* Generated image preview */}
                   {imageGenerated && (
