@@ -125,13 +125,13 @@ export async function POST(req: NextRequest) {
       const testLine = currentLine + " " + words[i];
       const metrics = ctx.measureText(testLine);
       if (metrics.width >= boxWidth) {
-        lines.push(utf8StrRev(currentLine));
+        lines.push(currentLine);
         currentLine = words[i];
       } else {
         currentLine = testLine;
       }
     }
-    lines.push(utf8StrRev(currentLine));
+    lines.push(currentLine);
 
     // Calculate vertical alignment (center within text box)
     const textHeight = lines.length * lineHeightPx;
