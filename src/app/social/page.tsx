@@ -16,6 +16,7 @@ import {
   Share2,
   Image,
   Send,
+  Download,
   Loader2,
   ExternalLink,
   RefreshCw,
@@ -285,24 +286,34 @@ export default function SocialPage() {
                         </button>
 
                         {imageGenerated && (
-                          <button
-                            onClick={() => sendToTelegram(item)}
-                            disabled={isSending || isSent}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                              isSent
-                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                                : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:shadow-lg hover:shadow-cyan-500/15 active:scale-[0.97] text-white disabled:opacity-50"
-                            }`}
-                          >
-                            {isSending ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : isSent ? (
-                              <CheckCircle2 className="w-3 h-3" />
-                            ) : (
-                              <Send className="w-3 h-3" />
-                            )}
-                            {isSent ? "Sent" : "Send to Telegram"}
-                          </button>
+                          <>
+                            <button
+                              onClick={() => sendToTelegram(item)}
+                              disabled={isSending || isSent}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                                isSent
+                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                  : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:shadow-lg hover:shadow-cyan-500/15 active:scale-[0.97] text-white disabled:opacity-50"
+                              }`}
+                            >
+                              {isSending ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : isSent ? (
+                                <CheckCircle2 className="w-3 h-3" />
+                              ) : (
+                                <Send className="w-3 h-3" />
+                              )}
+                              {isSent ? "Sent" : "Send to Telegram"}
+                            </button>
+                            <a
+                              href={generatedImages.get(item.link)!}
+                              download={`social-${Date.now()}.png`}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-all active:scale-[0.97]"
+                            >
+                              <Download className="w-3 h-3" />
+                              Download
+                            </a>
+                          </>
                         )}
                       </div>
                     </div>

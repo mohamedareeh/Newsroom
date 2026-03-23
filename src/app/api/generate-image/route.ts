@@ -95,22 +95,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Title text (RTL Dhivehi)
+    // Title text (RTL Dhivehi) — positioned in the bottom gradient area
     children.push(
       React.createElement("div", {
         key: "title",
         style: {
           position: "absolute" as const,
-          bottom: 100,
-          left: 80,
-          right: 80,
+          bottom: 80,
+          left: 100,
+          right: 100,
           fontFamily: "Faruma",
-          fontSize: 64,
+          fontSize: 72,
           color: "white",
-          lineHeight: 1.5,
+          lineHeight: 1.8,
           textAlign: "right" as const,
           direction: "rtl" as const,
-          textShadow: "0 4px 30px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.7)",
+          textShadow: "0 2px 12px rgba(0,0,0,0.6)",
         },
       }, title)
     );
