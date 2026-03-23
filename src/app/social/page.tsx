@@ -84,8 +84,8 @@ export default function SocialPage() {
     iframeDoc.write(`<!DOCTYPE html><html><head>
       <style>
         @font-face {
-          font-family: "Faruma";
-          src: url("/fonts/Faruma.otf") format("opentype");
+          font-family: "MVWaheed";
+          src: url("/fonts/MVWaheed.otf") format("opentype");
           font-display: block;
         }
         * { margin: 0; padding: 0; }
@@ -94,19 +94,20 @@ export default function SocialPage() {
     </head><body>
       <div id="container" style="
         width: 1500px; height: 1500px;
-        display: flex; align-items: flex-end; justify-content: flex-end;
-        padding: 80px 100px;
+        display: flex; align-items: center; justify-content: center;
+        padding: 120px 100px;
         box-sizing: border-box;
       ">
         <div id="text" style="
-          font-family: Faruma, sans-serif;
-          font-size: 68px;
+          font-family: MVWaheed, Faruma, sans-serif;
+          font-size: 72px;
           line-height: 1.8;
           color: white;
           direction: rtl;
-          text-align: right;
+          text-align: center;
           text-shadow: 0 3px 12px rgba(0,0,0,0.7);
           max-width: 1300px;
+          width: 100%;
         ">${title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
       </div>
     </body></html>`);
