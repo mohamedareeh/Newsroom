@@ -18,6 +18,7 @@ import {
   Send,
   Download,
   Facebook,
+  Languages,
   Loader2,
   ExternalLink,
   RefreshCw,
@@ -183,6 +184,10 @@ export default function SocialPage() {
           <Link href="/writer" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200">
             <PenTool className="w-4 h-4" />
             AI Writer
+          </Link>
+          <Link href="/translate" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200">
+            <Languages className="w-4 h-4" />
+            Translate
           </Link>
           <Link href="/social" className="relative flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.08] text-[#8BA3F9] text-sm font-medium">
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#4F6DF5] rounded-r-full" />

@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   PenTool,
   Share2,
+  Languages,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import { useSettings } from "@/lib/useSettings";
@@ -304,6 +305,13 @@ export default function Dashboard() {
           >
             <PenTool className="w-4 h-4" />
             AI Writer
+          </Link>
+          <Link
+            href="/translate"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200"
+          >
+            <Languages className="w-4 h-4" />
+            Translate
           </Link>
           <Link
             href="/social"
