@@ -27,6 +27,10 @@ export async function GET() {
       botToken: settings.telegram?.botToken ? "••••••••" : "",
       chatId: settings.telegram?.chatId || "",
     },
+    facebook: admin ? (settings.facebook || { pageAccessToken: "", pageId: "" }) : {
+      pageAccessToken: settings.facebook?.pageAccessToken ? "••••••••" : "",
+      pageId: settings.facebook?.pageId || "",
+    },
   });
 }
 
@@ -54,6 +58,7 @@ export async function POST(req: NextRequest) {
       promptTemplate: body.promptTemplate !== undefined ? body.promptTemplate : current.promptTemplate,
       wordpress: body.wordpress !== undefined ? { ...current.wordpress, ...body.wordpress } : current.wordpress,
       telegram: body.telegram !== undefined ? { ...(current.telegram || { botToken: "", chatId: "" }), ...body.telegram } : (current.telegram || { botToken: "", chatId: "" }),
+      facebook: body.facebook !== undefined ? { ...(current.facebook || { pageAccessToken: "", pageId: "" }), ...body.facebook } : (current.facebook || { pageAccessToken: "", pageId: "" }),
       customSources: body.customSources !== undefined ? body.customSources : current.customSources,
       removedDefaultSourceIds: body.removedDefaultSourceIds !== undefined ? body.removedDefaultSourceIds : current.removedDefaultSourceIds,
       enabledSourceIds: body.enabledSourceIds !== undefined ? body.enabledSourceIds : current.enabledSourceIds,

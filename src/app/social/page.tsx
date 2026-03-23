@@ -17,6 +17,7 @@ import {
   Image,
   Send,
   Download,
+  Facebook,
   Loader2,
   ExternalLink,
   RefreshCw,
@@ -50,6 +51,8 @@ export default function SocialPage() {
   const [sentItems, setSentItems] = useState<Set<string>>(new Set());
   const [sendError, setSendError] = useState("");
   const [socialTexts, setSocialTexts] = useState<Map<string, string>>(new Map());
+  const [fbSendingFor, setFbSendingFor] = useState("");
+  const [fbSentItems, setFbSentItems] = useState<Set<string>>(new Set());
 
   // ── Fetch RSS feed ──
   const fetchFeed = useCallback(async () => {
@@ -123,6 +126,32 @@ export default function SocialPage() {
       setSendError(err instanceof Error ? err.message : "Failed to send to Telegram");
     } finally {
       setSendingFor("");
+    }
+  }, [generatedImages, socialTexts]);
+
+  // ── Send to Facebook ──
+  const sendToFacebook = useCallback(async (item: FeedItem) => {
+    setFbSendingFor(item.link);
+    setSendError("");
+    try {
+      const dataUrl = generatedImages.get(item.link);
+      if (!dataUrl) throw new Error("No generated image");
+      const base64 = dataUrl.split(",")[1];
+      const customText = socialTexts.get(item.link);
+      const displayText = customText?.trim() || item.title;
+      const caption = `${displayText}\n\n${item.link}`;
+      const res = await fetch("/api/facebook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, caption }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to post");
+      setFbSentItems((prev) => new Set(prev).add(item.link));
+    } catch (err: unknown) {
+      setSendError(err instanceof Error ? err.message : "Failed to post to Facebook");
+    } finally {
+      setFbSendingFor("");
     }
   }, [generatedImages, socialTexts]);
 
@@ -239,6 +268,8 @@ export default function SocialPage() {
               const isGenerating = generatingFor === item.link;
               const isSending = sendingFor === item.link;
               const isSent = sentItems.has(item.link);
+              const isFbSending = fbSendingFor === item.link;
+              const isFbSent = fbSentItems.has(item.link);
 
               return (
                 <GlassCard key={`${item.link}-${i}`} className="p-4 sm:p-5 animate-fade-in">
@@ -310,6 +341,24 @@ export default function SocialPage() {
                                 <Send className="w-3 h-3" />
                               )}
                               {isSent ? "Sent" : "Send to Telegram"}
+                            </button>
+                            <button
+                              onClick={() => sendToFacebook(item)}
+                              disabled={isFbSending || isFbSent}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                                isFbSent
+                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                  : "bg-gradient-to-r from-blue-600 to-blue-800 hover:shadow-lg hover:shadow-blue-700/15 active:scale-[0.97] text-white disabled:opacity-50"
+                              }`}
+                            >
+                              {isFbSending ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : isFbSent ? (
+                                <CheckCircle2 className="w-3 h-3" />
+                              ) : (
+                                <Facebook className="w-3 h-3" />
+                              )}
+                              {isFbSent ? "Posted" : "Facebook"}
                             </button>
                             <a
                               href={generatedImages.get(item.link)!}

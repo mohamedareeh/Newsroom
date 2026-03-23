@@ -27,6 +27,10 @@ export interface SharedSettings {
     botToken: string;
     chatId: string;
   };
+  facebook: {
+    pageAccessToken: string;
+    pageId: string;
+  };
   // Source management (admin-only)
   customSources: SharedNewsSource[];
   removedDefaultSourceIds: string[];
@@ -40,6 +44,7 @@ export const DEFAULT_SHARED: SharedSettings = {
   promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
   telegram: { botToken: "", chatId: "" },
+  facebook: { pageAccessToken: "", pageId: "" },
   customSources: [],
   removedDefaultSourceIds: [],
   enabledSourceIds: [], // empty = all enabled by default

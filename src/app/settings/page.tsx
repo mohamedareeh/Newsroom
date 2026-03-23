@@ -27,6 +27,7 @@ import {
   Timer,
   Send,
   MessageCircle,
+  Facebook,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -64,6 +65,7 @@ export default function SettingsPage() {
     promptTemplate: "",
     wordpress: { siteUrl: "", username: "", appPassword: "" },
     telegram: { botToken: "", chatId: "" },
+    facebook: { pageAccessToken: "", pageId: "" },
     customSources: [] as NewsSource[],
     removedDefaultSourceIds: [] as string[],
     enabledSourceIds: [] as string[],
@@ -99,6 +101,7 @@ export default function SettingsPage() {
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showWpPassword, setShowWpPassword] = useState(false);
   const [showTelegramToken, setShowTelegramToken] = useState(false);
+  const [showFacebookToken, setShowFacebookToken] = useState(false);
 
   // WP test connection
   const [wpTesting, setWpTesting] = useState(false);
@@ -913,6 +916,62 @@ export default function SettingsPage() {
                       updateShared({ telegram: { ...shared.telegram, chatId: e.target.value } })
                     }
                     placeholder="-1001234567890"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+            </GlassCard>
+            )}
+
+            {/* ════════════════════════════════════════════════════ */}
+            {/* Facebook Page (Admin Only)                           */}
+            {/* ════════════════════════════════════════════════════ */}
+            {userIsAdmin && (
+            <GlassCard className="p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Facebook className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  Facebook Page
+                </h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">
+                Post social media images to your Facebook Page using the Graph API.
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Page Access Token
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showFacebookToken ? "text" : "password"}
+                      value={shared.facebook?.pageAccessToken || ""}
+                      onChange={(e) =>
+                        updateShared({ facebook: { ...shared.facebook, pageAccessToken: e.target.value } })
+                      }
+                      placeholder="EAAxxxxxxx..."
+                      className={`${inputCls} pr-10`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowFacebookToken(!showFacebookToken)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showFacebookToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Page ID
+                  </label>
+                  <input
+                    type="text"
+                    value={shared.facebook?.pageId || ""}
+                    onChange={(e) =>
+                      updateShared({ facebook: { ...shared.facebook, pageId: e.target.value } })
+                    }
+                    placeholder="123456789012345"
                     className={inputCls}
                   />
                 </div>
