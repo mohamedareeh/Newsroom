@@ -70,14 +70,85 @@ export default function SocialPage() {
     fetchFeed();
   }, [fetchFeed]);
 
+  // ── Render text via HTML → html2canvas (proper Thaana shaping) ──
+  const renderTextImage = useCallback(async (title: string): Promise<string> => {
+    const html2canvas = (await import("html2canvas")).default;
+
+    // Create an isolated offscreen div (iframe to avoid oklch CSS inheritance)
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1500px;height:1500px;border:none;opacity:0;";
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument!;
+    iframeDoc.open();
+    iframeDoc.write(`<!DOCTYPE html><html><head>
+      <style>
+        @font-face {
+          font-family: "Faruma";
+          src: url("/fonts/Faruma.otf") format("opentype");
+          font-display: block;
+        }
+        * { margin: 0; padding: 0; }
+        body { width: 1500px; height: 1500px; background: transparent; }
+      </style>
+    </head><body>
+      <div id="container" style="
+        width: 1500px; height: 1500px;
+        display: flex; align-items: flex-end; justify-content: flex-end;
+        padding: 80px 100px;
+        box-sizing: border-box;
+      ">
+        <div id="text" style="
+          font-family: Faruma, sans-serif;
+          font-size: 68px;
+          line-height: 1.8;
+          color: white;
+          direction: rtl;
+          text-align: right;
+          text-shadow: 0 3px 12px rgba(0,0,0,0.7);
+          max-width: 1300px;
+        ">${title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+      </div>
+    </body></html>`);
+    iframeDoc.close();
+
+    // Wait for font to load in iframe
+    await iframeDoc.fonts.ready;
+    await new Promise(r => setTimeout(r, 200));
+
+    const container = iframeDoc.getElementById("container")!;
+
+    // Wait for font to be fully loaded
+    await document.fonts.ready;
+
+    const canvas = await html2canvas(container, {
+      width: 1500,
+      height: 1500,
+      scale: 1,
+      backgroundColor: null, // transparent
+      logging: false,
+    });
+
+    document.body.removeChild(iframe);
+
+    // Return base64 without the data URL prefix
+    return canvas.toDataURL("image/png").split(",")[1];
+  }, []);
+
   // ── Generate image ──
   const generateImage = useCallback(async (item: FeedItem) => {
     setGeneratingFor(item.link);
     try {
+      // Render text via HTML (browser text engine handles Thaana properly)
+      const textImageBase64 = await renderTextImage(item.title);
+
       const res = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: item.title, imageUrl: item.imageUrl || "" }),
+        body: JSON.stringify({
+          imageUrl: item.imageUrl || "",
+          textImageBase64,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -94,7 +165,7 @@ export default function SocialPage() {
       setError(err instanceof Error ? err.message : "Image generation failed");
       setGeneratingFor("");
     }
-  }, []);
+  }, [renderTextImage]);
 
   // ── Send to Telegram ──
   const sendToTelegram = useCallback(async (item: FeedItem) => {

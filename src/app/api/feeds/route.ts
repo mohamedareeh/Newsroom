@@ -51,12 +51,13 @@ export async function GET(req: NextRequest) {
         // KV unavailable — skip filtering (dev mode)
       }
 
-      // Extract featured image from RSS enclosure or media:content
+      // Extract featured image: enclosure > media:content > first <img> in content
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const imageUrl =
         item.enclosure?.url ||
         (item as any).mediaContent?.$.url ||
         (item as any).mediaContent?.url ||
+        item.content?.match(/<img[^>]+src="([^"]+)"/)?.[1] ||
         "";
 
       headlines.push({

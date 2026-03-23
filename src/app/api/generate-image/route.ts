@@ -1,151 +1,89 @@
 // ─── Social Image Generator API ───────────────────────────
 // POST /api/generate-image
-// Generates a 1500x1500 PNG with featured image background,
-// postwater.png overlay, and RTL Dhivehi title using satori + resvg.
+// Composites a 1500x1500 PNG: background image + postwater overlay
+// + pre-rendered text overlay (from client-side canvas).
+// The client renders Dhivehi text using the browser's text engine
+// (which properly handles Thaana script shaping/joining) and sends
+// it as a transparent PNG. This route composites all layers with sharp.
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import satori from "satori";
-import { Resvg } from "@resvg/resvg-js";
+import sharp from "sharp";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import React from "react";
 
 export async function POST(req: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { title, imageUrl } = await req.json();
-  if (!title) {
-    return NextResponse.json({ error: "Missing title" }, { status: 400 });
+  const { imageUrl, textImageBase64 } = await req.json();
+  if (!textImageBase64) {
+    return NextResponse.json({ error: "Missing textImageBase64" }, { status: 400 });
   }
 
   try {
-    // 1. Load Faruma font as ArrayBuffer
-    const fontPath = join(process.cwd(), "public", "fonts", "Faruma.otf");
-    const fontData = await readFile(fontPath);
+    const W = 1500;
+    const H = 1500;
 
-    // 2. Fetch background image → base64 data URL
-    let bgBase64 = "";
+    // 1. Start with background: featured image or solid color
+    let baseImage: sharp.Sharp;
     if (imageUrl) {
       try {
-        const imgRes = await fetch(imageUrl, {
+        const res = await fetch(imageUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
           },
           signal: AbortSignal.timeout(10000),
         });
-        if (imgRes.ok) {
-          const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
-          const contentType = imgRes.headers.get("content-type") || "image/jpeg";
-          bgBase64 = `data:${contentType};base64,${imgBuffer.toString("base64")}`;
+        if (res.ok) {
+          const buf = Buffer.from(await res.arrayBuffer());
+          baseImage = sharp(buf).resize(W, H, { fit: "cover", position: "center" });
+        } else {
+          baseImage = sharp({
+            create: { width: W, height: H, channels: 4, background: { r: 27, g: 35, b: 50, alpha: 1 } },
+          });
         }
       } catch {
-        // Image fetch failed — use solid background
+        baseImage = sharp({
+          create: { width: W, height: H, channels: 4, background: { r: 27, g: 35, b: 50, alpha: 1 } },
+        });
       }
+    } else {
+      baseImage = sharp({
+        create: { width: W, height: H, channels: 4, background: { r: 27, g: 35, b: 50, alpha: 1 } },
+      });
     }
 
-    // 3. Load watermark overlay → base64 data URL
-    let watermarkBase64 = "";
+    // 2. Load watermark overlay
+    const composites: sharp.OverlayOptions[] = [];
     try {
       const watermarkPath = join(process.cwd(), "public", "postwater.png");
-      const watermarkBuffer = await readFile(watermarkPath);
-      watermarkBase64 = `data:image/png;base64,${watermarkBuffer.toString("base64")}`;
+      const watermarkBuf = await readFile(watermarkPath);
+      const watermarkResized = await sharp(watermarkBuf)
+        .resize(W, H, { fit: "fill" })
+        .png()
+        .toBuffer();
+      composites.push({ input: watermarkResized, top: 0, left: 0 });
     } catch {
-      // No watermark file — skip overlay
+      // No watermark — skip
     }
 
-    // 4. Build the satori element tree using React.createElement
-    const children: React.ReactNode[] = [];
+    // 3. Add text overlay (pre-rendered by client with proper Thaana shaping)
+    const textBuffer = Buffer.from(textImageBase64, "base64");
+    // Resize text overlay to match canvas dimensions
+    const textResized = await sharp(textBuffer)
+      .resize(W, H, { fit: "fill" })
+      .png()
+      .toBuffer();
+    composites.push({ input: textResized, top: 0, left: 0 });
 
-    // Background image or solid color
-    if (bgBase64) {
-      children.push(
-        React.createElement("img", {
-          key: "bg",
-          src: bgBase64,
-          style: {
-            position: "absolute" as const,
-            top: 0,
-            left: 0,
-            width: 1500,
-            height: 1500,
-            objectFit: "cover" as const,
-          },
-        })
-      );
-    }
-
-    // Watermark overlay
-    if (watermarkBase64) {
-      children.push(
-        React.createElement("img", {
-          key: "wm",
-          src: watermarkBase64,
-          style: {
-            position: "absolute" as const,
-            top: 0,
-            left: 0,
-            width: 1500,
-            height: 1500,
-          },
-        })
-      );
-    }
-
-    // Title text (RTL Dhivehi) — positioned in the bottom gradient area
-    children.push(
-      React.createElement("div", {
-        key: "title",
-        style: {
-          position: "absolute" as const,
-          bottom: 80,
-          left: 100,
-          right: 100,
-          fontFamily: "Faruma",
-          fontSize: 72,
-          color: "white",
-          lineHeight: 1.8,
-          textAlign: "right" as const,
-          direction: "rtl" as const,
-          textShadow: "0 2px 12px rgba(0,0,0,0.6)",
-        },
-      }, title)
-    );
-
-    // 5. Generate SVG with satori
-    const element = React.createElement("div", {
-      style: {
-        width: 1500,
-        height: 1500,
-        position: "relative" as const,
-        display: "flex",
-        flexDirection: "column" as const,
-        justifyContent: "flex-end" as const,
-        backgroundColor: bgBase64 ? "transparent" : "#1B2332",
-      },
-    }, ...children);
-
-    const svg = await satori(element, {
-      width: 1500,
-      height: 1500,
-      fonts: [
-        {
-          name: "Faruma",
-          data: fontData,
-          style: "normal",
-        },
-      ],
-    });
-
-    // 6. Convert SVG to PNG
-    const resvg = new Resvg(svg, {
-      fitTo: { mode: "width", value: 1500 },
-    });
-    const pngData = resvg.render();
-    const pngBuffer = pngData.asPng();
+    // 4. Composite and export
+    const pngBuffer = await baseImage
+      .composite(composites)
+      .png({ quality: 90 })
+      .toBuffer();
 
     return new NextResponse(new Uint8Array(pngBuffer), {
       headers: {
@@ -156,6 +94,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Image generation failed";
+    console.error("Image generation error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
