@@ -1,8 +1,9 @@
 // ─── Social Image Generator API ───────────────────────────
 // POST /api/generate-image
 // Generates a 1500x1500 PNG: background image + postwater overlay
-// + Dhivehi title text using node-canvas for text rendering
-// and sharp for image compositing.
+// + Dhivehi title text. Uses node-canvas with TTF font and manual
+// RTL string reversal (same approach as the WordPress plugin).
+// node-canvas uses FreeType which properly shapes Thaana glyphs.
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
@@ -11,12 +12,35 @@ import { createCanvas, loadImage, registerFont } from "canvas";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
-// Register MVWaheed font
-const fontPath = join(process.cwd(), "public", "fonts", "MVWaheed.otf");
+// Register MVAWaheed TTF font (TTF works better than OTF with node-canvas)
+const fontPath = join(process.cwd(), "public", "fonts", "MVAWaheed.ttf");
 try {
-  registerFont(fontPath, { family: "MVWaheed" });
+  registerFont(fontPath, { family: "MVAWaheed" });
 } catch {
-  console.warn("Could not register MVWaheed font");
+  console.warn("Could not register MVAWaheed font at", fontPath);
+}
+
+// ── RTL string reversal (same logic as WordPress plugin) ──
+// GD/FreeType renders LTR, so we reverse the Unicode string for RTL display.
+// Numbers, dates, and special chars are preserved in correct order.
+function utf8StrRev(str: string): string {
+  // Split into individual Unicode characters and reverse
+  const chars = Array.from(str);
+  let line = chars.reverse().join("");
+
+  // Fix numbers/dates that got reversed — keep them in original order
+  const numMatches = str.match(/[\d:%-/،$]+/g) || [];
+  for (const num of numMatches) {
+    const reversed = Array.from(num).reverse().join("");
+    if (reversed !== num) {
+      line = line.replace(reversed, num);
+    }
+  }
+
+  // Fix parentheses direction
+  line = line.replace(/\)(.*?)\(/g, "($1)");
+
+  return line;
 }
 
 export async function POST(req: NextRequest) {
@@ -32,6 +56,9 @@ export async function POST(req: NextRequest) {
   try {
     const W = 1500;
     const H = 1500;
+    const fontSize = 70;
+    const lineHeightMultiplier = 1.86; // (70 + 60) / 70, same as plugin for Thaana
+    const lineHeightPx = fontSize * lineHeightMultiplier;
 
     // 1. Background: featured image or solid color (via sharp)
     let baseImage: sharp.Sharp;
@@ -77,49 +104,62 @@ export async function POST(req: NextRequest) {
       // No watermark
     }
 
-    // 3. Render text using node-canvas (transparent PNG)
-    const textCanvas = createCanvas(W, H);
+    // 3. Render text using node-canvas (same approach as WordPress plugin)
+    const titleBoxWidth = W;
+    const titleBoxHeight = 400;
+    const bottomMargin = 30;
+    const paddingX = 50;
+    const paddingY = 20;
+
+    const textCanvas = createCanvas(titleBoxWidth, titleBoxHeight);
     const ctx = textCanvas.getContext("2d");
 
-    const fontSize = 72;
-    const lineHeight = fontSize * 1.8;
-    const padding = 100;
-    const maxWidth = W - padding * 2;
-    const bottomPadding = 100;
-
-    ctx.font = `${fontSize}px MVWaheed`;
+    // Font size in points (0.75 * pixels, same as plugin)
+    const fontSizePt = 0.75 * fontSize;
+    ctx.font = `${fontSizePt}pt MVAWaheed`;
     ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.direction = "rtl";
-    ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 3;
+    ctx.textBaseline = "alphabetic";
 
-    // Word-wrap using measureText
-    const words = title.split(/\s+/);
+    // Word-wrap text using measureText (same logic as plugin's wrapTextWithOverflow)
+    const boxWidth = titleBoxWidth - paddingX * 2;
+    const words = title.split(" ");
     const lines: string[] = [];
-    let currentLine = "";
-    for (const word of words) {
-      const testLine = currentLine ? currentLine + " " + word : word;
+    let currentLine = words[0];
+    for (let i = 1; i < words.length; i++) {
+      const testLine = currentLine + " " + words[i];
       const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
+      if (metrics.width >= boxWidth) {
+        // Reverse the line for RTL (same as plugin's utf8StrRev)
+        lines.push(utf8StrRev(currentLine));
+        currentLine = words[i];
       } else {
         currentLine = testLine;
       }
     }
-    if (currentLine) lines.push(currentLine);
+    lines.push(utf8StrRev(currentLine));
 
-    // Draw lines centered, anchored to bottom
-    const totalHeight = lines.length * lineHeight;
-    const startY = H - bottomPadding - totalHeight + lineHeight;
-    for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], W / 2, startY + i * lineHeight);
+    // Calculate vertical alignment (center within text box)
+    const textHeight = lines.length * lineHeightPx;
+    const yAlign = (titleBoxHeight - paddingY * 2) / 2 - textHeight / 2;
+    const baseline = 0.2;
+    const yShift = lineHeightPx * (1 - baseline);
+
+    // Draw each line centered
+    for (let n = 0; n < lines.length; n++) {
+      const lineMetrics = ctx.measureText(lines[n]);
+      const lineWidth = lineMetrics.width;
+      const xAlign = (boxWidth - lineWidth) / 2;
+
+      const x = paddingX + xAlign;
+      const y = paddingY + yAlign + yShift + n * lineHeightPx;
+
+      ctx.fillText(lines[n], x, y);
     }
 
+    // Convert text canvas to PNG and position at bottom
     const textPng = textCanvas.toBuffer("image/png");
-    composites.push({ input: textPng, top: 0, left: 0 });
+    const titleBoxY = H - titleBoxHeight - bottomMargin;
+    composites.push({ input: textPng, top: titleBoxY, left: 0 });
 
     // 4. Composite all layers
     const pngBuffer = await baseImage
