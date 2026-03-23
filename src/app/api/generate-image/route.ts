@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import sharp from "sharp";
 import { readFile } from "fs/promises";
 import { join } from "path";
@@ -138,10 +139,23 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`;
 
-    // Launch headless Chrome and screenshot
+    // Launch headless Chrome
+    // In production (Vercel): use @sparticuz/chromium
+    // In development: use locally installed Chrome
+    const isDev = process.env.NODE_ENV === "development";
     browser = await puppeteer.launch({
+      args: isDev ? ["--no-sandbox"] : chromium.args,
+      executablePath: isDev
+        ? (await (async () => {
+            try {
+              const puppeteerFull = await import("puppeteer");
+              return puppeteerFull.default.executablePath();
+            } catch {
+              return "/usr/bin/google-chrome-stable";
+            }
+          })())
+        : await chromium.executablePath(),
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
     });
 
     const page = await browser.newPage();
