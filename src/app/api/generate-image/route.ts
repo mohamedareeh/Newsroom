@@ -1,47 +1,15 @@
 // ─── Social Image Generator API ───────────────────────────
 // POST /api/generate-image
-// Generates a 1500x1500 PNG: background image + postwater overlay
-// + Dhivehi title text. Uses node-canvas with TTF font and manual
-// RTL string reversal (same approach as the WordPress plugin).
-// node-canvas uses FreeType which properly shapes Thaana glyphs.
+// Generates a 1500x1500 PNG using Puppeteer (headless Chrome).
+// Chrome's text engine properly handles Thaana script shaping,
+// RTL layout, and font rendering — unlike node-canvas/satori.
+// Layers: background image + postwater overlay + Dhivehi title.
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import sharp from "sharp";
-import { createCanvas, loadImage, registerFont } from "canvas";
+import puppeteer from "puppeteer";
 import { readFile } from "fs/promises";
 import { join } from "path";
-
-// Register MVAWaheed TTF font (TTF works better than OTF with node-canvas)
-const fontPath = join(process.cwd(), "public", "fonts", "MVAWaheed.ttf");
-try {
-  registerFont(fontPath, { family: "MVAWaheed" });
-} catch {
-  console.warn("Could not register MVAWaheed font at", fontPath);
-}
-
-// ── RTL string reversal (same logic as WordPress plugin) ──
-// GD/FreeType renders LTR, so we reverse the Unicode string for RTL display.
-// Numbers, dates, and special chars are preserved in correct order.
-function utf8StrRev(str: string): string {
-  // Split into individual Unicode characters and reverse
-  const chars = Array.from(str);
-  let line = chars.reverse().join("");
-
-  // Fix numbers/dates that got reversed — keep them in original order
-  const numMatches = str.match(/[\d:%-/،$]+/g) || [];
-  for (const num of numMatches) {
-    const reversed = Array.from(num).reverse().join("");
-    if (reversed !== num) {
-      line = line.replace(reversed, num);
-    }
-  }
-
-  // Fix parentheses direction
-  line = line.replace(/\)(.*?)\(/g, "($1)");
-
-  return line;
-}
 
 export async function POST(req: NextRequest) {
   if (!(await isAuthenticated())) {
@@ -53,119 +21,138 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing title" }, { status: 400 });
   }
 
+  let browser;
   try {
-    const W = 1500;
-    const H = 1500;
-    const fontSize = 70;
-    const lineHeightMultiplier = 1.86; // (70 + 60) / 70, same as plugin for Thaana
-    const lineHeightPx = fontSize * lineHeightMultiplier;
+    // Load font as base64 for embedding in HTML
+    const fontPath = join(process.cwd(), "public", "fonts", "MVAWaheed.ttf");
+    const fontData = await readFile(fontPath);
+    const fontBase64 = fontData.toString("base64");
 
-    // 1. Background: featured image or solid color (via sharp)
-    let baseImage: sharp.Sharp;
+    // Load watermark as base64
+    let watermarkBase64 = "";
+    try {
+      const watermarkPath = join(process.cwd(), "public", "postwater.png");
+      const watermarkData = await readFile(watermarkPath);
+      watermarkBase64 = `data:image/png;base64,${watermarkData.toString("base64")}`;
+    } catch {
+      // No watermark
+    }
+
+    // Fetch background image as base64
+    let bgBase64 = "";
     if (imageUrl) {
       try {
         const res = await fetch(imageUrl, {
           headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
           },
           signal: AbortSignal.timeout(10000),
         });
         if (res.ok) {
           const buf = Buffer.from(await res.arrayBuffer());
-          baseImage = sharp(buf).resize(W, H, { fit: "cover", position: "center" });
-        } else {
-          baseImage = sharp({
-            create: { width: W, height: H, channels: 4, background: { r: 27, g: 35, b: 50, alpha: 1 } },
-          });
+          const ct = res.headers.get("content-type") || "image/jpeg";
+          bgBase64 = `data:${ct};base64,${buf.toString("base64")}`;
         }
       } catch {
-        baseImage = sharp({
-          create: { width: W, height: H, channels: 4, background: { r: 27, g: 35, b: 50, alpha: 1 } },
-        });
-      }
-    } else {
-      baseImage = sharp({
-        create: { width: W, height: H, channels: 4, background: { r: 27, g: 35, b: 50, alpha: 1 } },
-      });
-    }
-
-    // 2. Load watermark overlay
-    const composites: sharp.OverlayOptions[] = [];
-    try {
-      const watermarkPath = join(process.cwd(), "public", "postwater.png");
-      const watermarkBuf = await readFile(watermarkPath);
-      const watermarkResized = await sharp(watermarkBuf)
-        .resize(W, H, { fit: "fill" })
-        .png()
-        .toBuffer();
-      composites.push({ input: watermarkResized, top: 0, left: 0 });
-    } catch {
-      // No watermark
-    }
-
-    // 3. Render text using node-canvas (same approach as WordPress plugin)
-    const titleBoxWidth = W;
-    const titleBoxHeight = 400;
-    const bottomMargin = 30;
-    const paddingX = 50;
-    const paddingY = 20;
-
-    const textCanvas = createCanvas(titleBoxWidth, titleBoxHeight);
-    const ctx = textCanvas.getContext("2d");
-
-    // Font size in points (0.75 * pixels, same as plugin)
-    const fontSizePt = 0.75 * fontSize;
-    ctx.font = `${fontSizePt}pt MVAWaheed`;
-    ctx.fillStyle = "white";
-    ctx.textBaseline = "alphabetic";
-
-    // Word-wrap text using measureText (same logic as plugin's wrapTextWithOverflow)
-    const boxWidth = titleBoxWidth - paddingX * 2;
-    const words = title.split(" ");
-    const lines: string[] = [];
-    let currentLine = words[0];
-    for (let i = 1; i < words.length; i++) {
-      const testLine = currentLine + " " + words[i];
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width >= boxWidth) {
-        // Reverse the line for RTL (same as plugin's utf8StrRev)
-        lines.push(utf8StrRev(currentLine));
-        currentLine = words[i];
-      } else {
-        currentLine = testLine;
+        // Image fetch failed
       }
     }
-    lines.push(utf8StrRev(currentLine));
 
-    // Calculate vertical alignment (center within text box)
-    const textHeight = lines.length * lineHeightPx;
-    const yAlign = (titleBoxHeight - paddingY * 2) / 2 - textHeight / 2;
-    const baseline = 0.2;
-    const yShift = lineHeightPx * (1 - baseline);
+    const escaped = title
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
 
-    // Draw each line centered
-    for (let n = 0; n < lines.length; n++) {
-      const lineMetrics = ctx.measureText(lines[n]);
-      const lineWidth = lineMetrics.width;
-      const xAlign = (boxWidth - lineWidth) / 2;
+    // Build HTML page that looks exactly like the final image
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @font-face {
+    font-family: 'MVAWaheed';
+    src: url('data:font/truetype;base64,${fontBase64}') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1500px;
+    height: 1500px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1500px;
+    height: 1500px;
+    object-fit: cover;
+  }
+  .bg-solid {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1500px;
+    height: 1500px;
+    background: #1B2332;
+  }
+  .overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1500px;
+    height: 1500px;
+  }
+  .text-container {
+    position: absolute;
+    bottom: 30px;
+    left: 0;
+    right: 0;
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 50px;
+  }
+  .title {
+    font-family: 'MVAWaheed', sans-serif;
+    font-size: 70px;
+    line-height: 1.86;
+    color: white;
+    direction: rtl;
+    text-align: center;
+    max-width: 1400px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  }
+</style>
+</head>
+<body>
+  ${bgBase64 ? `<img class="bg" src="${bgBase64}" />` : '<div class="bg-solid"></div>'}
+  ${watermarkBase64 ? `<img class="overlay" src="${watermarkBase64}" />` : ''}
+  <div class="text-container">
+    <div class="title">${escaped}</div>
+  </div>
+</body>
+</html>`;
 
-      const x = paddingX + xAlign;
-      const y = paddingY + yAlign + yShift + n * lineHeightPx;
+    // Launch headless Chrome and screenshot
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    });
 
-      ctx.fillText(lines[n], x, y);
-    }
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1500, height: 1500, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
-    // Convert text canvas to PNG and position at bottom
-    const textPng = textCanvas.toBuffer("image/png");
-    const titleBoxY = H - titleBoxHeight - bottomMargin;
-    composites.push({ input: textPng, top: titleBoxY, left: 0 });
+    // Wait for font to load
+    await page.evaluate(() => document.fonts.ready);
 
-    // 4. Composite all layers
-    const pngBuffer = await baseImage
-      .composite(composites)
-      .png({ quality: 90 })
-      .toBuffer();
+    const pngBuffer = await page.screenshot({
+      type: "png",
+      clip: { x: 0, y: 0, width: 1500, height: 1500 },
+    });
+
+    await browser.close();
+    browser = null;
 
     return new NextResponse(new Uint8Array(pngBuffer), {
       headers: {
@@ -175,6 +162,9 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
+    if (browser) {
+      try { await browser.close(); } catch { /* ignore */ }
+    }
     const message = err instanceof Error ? err.message : "Image generation failed";
     console.error("Image generation error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
