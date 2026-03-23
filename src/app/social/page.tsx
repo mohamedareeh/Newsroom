@@ -70,69 +70,64 @@ export default function SocialPage() {
     fetchFeed();
   }, [fetchFeed]);
 
-  // ── Render text via HTML → html2canvas (proper Thaana shaping) ──
+  // ── Render text via SVG foreignObject (uses browser's native text engine) ──
   const renderTextImage = useCallback(async (title: string): Promise<string> => {
-    const html2canvas = (await import("html2canvas")).default;
+    const escaped = title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    // Create an isolated offscreen div (iframe to avoid oklch CSS inheritance)
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1500px;height:1500px;border:none;opacity:0;";
-    document.body.appendChild(iframe);
+    // SVG with foreignObject — the browser renders HTML text natively
+    // which properly handles Thaana script shaping and word spacing
+    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1500">
+      <defs>
+        <style>
+          @font-face {
+            font-family: "MVWaheed";
+            src: url("${window.location.origin}/fonts/MVWaheed.otf") format("opentype");
+          }
+        </style>
+      </defs>
+      <foreignObject width="1500" height="1500">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="
+          width: 1500px; height: 1500px;
+          display: flex; align-items: flex-end; justify-content: center;
+          padding: 80px 100px;
+          box-sizing: border-box;
+        ">
+          <div style="
+            font-family: MVWaheed, Faruma, sans-serif;
+            font-size: 72px;
+            line-height: 1.8;
+            color: white;
+            direction: rtl;
+            text-align: center;
+            text-shadow: 0 3px 12px rgba(0,0,0,0.7);
+            max-width: 1300px;
+            width: 100%;
+          ">${escaped}</div>
+        </div>
+      </foreignObject>
+    </svg>`;
 
-    const iframeDoc = iframe.contentDocument!;
-    iframeDoc.open();
-    iframeDoc.write(`<!DOCTYPE html><html><head>
-      <style>
-        @font-face {
-          font-family: "MVWaheed";
-          src: url("/fonts/MVWaheed.otf") format("opentype");
-          font-display: block;
-        }
-        * { margin: 0; padding: 0; }
-        body { width: 1500px; height: 1500px; background: transparent; }
-      </style>
-    </head><body>
-      <div id="container" style="
-        width: 1500px; height: 1500px;
-        display: flex; align-items: flex-end; justify-content: center;
-        padding: 80px 100px;
-        box-sizing: border-box;
-      ">
-        <div id="text" style="
-          font-family: MVWaheed, Faruma, sans-serif;
-          font-size: 72px;
-          line-height: 1.8;
-          color: white;
-          direction: rtl;
-          text-align: center;
-          text-shadow: 0 3px 12px rgba(0,0,0,0.7);
-          max-width: 1300px;
-          width: 100%;
-        ">${title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
-      </div>
-    </body></html>`);
-    iframeDoc.close();
+    // Load SVG as an image, then draw to canvas to get PNG
+    const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
 
-    // Wait for font to load in iframe
-    await iframeDoc.fonts.ready;
-    await new Promise(r => setTimeout(r, 200));
+    const img = document.createElement("img");
+    img.width = 1500;
+    img.height = 1500;
 
-    const container = iframeDoc.getElementById("container")!;
-
-    // Wait for font to be fully loaded
-    await document.fonts.ready;
-
-    const canvas = await html2canvas(container, {
-      width: 1500,
-      height: 1500,
-      scale: 1,
-      backgroundColor: null, // transparent
-      logging: false,
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("SVG render failed"));
+      img.src = url;
     });
 
-    document.body.removeChild(iframe);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1500;
+    canvas.height = 1500;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0, 1500, 1500);
+    URL.revokeObjectURL(url);
 
-    // Return base64 without the data URL prefix
     return canvas.toDataURL("image/png").split(",")[1];
   }, []);
 
