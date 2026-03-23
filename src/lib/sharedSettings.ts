@@ -23,6 +23,10 @@ export interface SharedSettings {
     username: string;
     appPassword: string;
   };
+  telegram: {
+    botToken: string;
+    chatId: string;
+  };
   // Source management (admin-only)
   customSources: SharedNewsSource[];
   removedDefaultSourceIds: string[];
@@ -35,6 +39,7 @@ export const DEFAULT_SHARED: SharedSettings = {
   composeModel: "gemini-2.5-flash",
   promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
+  telegram: { botToken: "", chatId: "" },
   customSources: [],
   removedDefaultSourceIds: [],
   enabledSourceIds: [], // empty = all enabled by default

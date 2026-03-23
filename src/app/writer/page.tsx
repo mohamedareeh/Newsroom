@@ -16,6 +16,7 @@ import {
   Settings2,
   LogOut,
   ArrowLeft,
+  Share2,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import GlassSelect from "@/components/GlassSelect";
@@ -82,6 +83,10 @@ export default function WriterPage() {
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#4F6DF5] rounded-r-full" />
             <PenTool className="w-4 h-4" />
             AI Writer
+          </Link>
+          <Link href="/social" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200">
+            <Share2 className="w-4 h-4" />
+            Social Media
           </Link>
           <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/50 hover:bg-white/[0.04] hover:text-white/70 text-sm transition-all duration-200">
             <Settings2 className="w-4 h-4" />

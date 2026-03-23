@@ -23,6 +23,10 @@ export async function GET() {
       username: settings.wordpress.username ? "••••" : "",
       appPassword: settings.wordpress.appPassword ? "••••" : "",
     },
+    telegram: admin ? (settings.telegram || { botToken: "", chatId: "" }) : {
+      botToken: settings.telegram?.botToken ? "••••••••" : "",
+      chatId: settings.telegram?.chatId || "",
+    },
   });
 }
 
@@ -49,6 +53,7 @@ export async function POST(req: NextRequest) {
       composeModel: body.composeModel !== undefined ? body.composeModel : current.composeModel,
       promptTemplate: body.promptTemplate !== undefined ? body.promptTemplate : current.promptTemplate,
       wordpress: body.wordpress !== undefined ? { ...current.wordpress, ...body.wordpress } : current.wordpress,
+      telegram: body.telegram !== undefined ? { ...(current.telegram || { botToken: "", chatId: "" }), ...body.telegram } : (current.telegram || { botToken: "", chatId: "" }),
       customSources: body.customSources !== undefined ? body.customSources : current.customSources,
       removedDefaultSourceIds: body.removedDefaultSourceIds !== undefined ? body.removedDefaultSourceIds : current.removedDefaultSourceIds,
       enabledSourceIds: body.enabledSourceIds !== undefined ? body.enabledSourceIds : current.enabledSourceIds,

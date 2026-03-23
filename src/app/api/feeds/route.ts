@@ -14,6 +14,9 @@ const parser = new Parser({
   headers: {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   },
+  customFields: {
+    item: [["media:content", "mediaContent"]],
+  },
 });
 
 export async function GET(req: NextRequest) {
@@ -34,7 +37,7 @@ export async function GET(req: NextRequest) {
     const items = (feed.items || []).slice(0, count + 10); // grab extra for filtering
 
     // Check each item against the 48-hour memory bank
-    const headlines: Array<{ title: string; link: string; pubDate?: string; alreadyProcessed: boolean }> = [];
+    const headlines: Array<{ title: string; link: string; pubDate?: string; alreadyProcessed: boolean; imageUrl?: string }> = [];
 
     for (const item of items) {
       if (!item.link || !item.title) continue;
@@ -48,11 +51,20 @@ export async function GET(req: NextRequest) {
         // KV unavailable — skip filtering (dev mode)
       }
 
+      // Extract featured image from RSS enclosure or media:content
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageUrl =
+        item.enclosure?.url ||
+        (item as any).mediaContent?.$.url ||
+        (item as any).mediaContent?.url ||
+        "";
+
       headlines.push({
         title: item.title,
         link: item.link,
         pubDate: item.pubDate || item.isoDate || undefined,
         alreadyProcessed,
+        imageUrl: imageUrl || undefined,
       });
 
       if (headlines.length >= count) break;
