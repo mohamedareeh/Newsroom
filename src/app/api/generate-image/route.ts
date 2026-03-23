@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import puppeteer from "puppeteer";
+import sharp from "sharp";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
@@ -50,8 +51,12 @@ export async function POST(req: NextRequest) {
         });
         if (res.ok) {
           const buf = Buffer.from(await res.arrayBuffer());
-          const ct = res.headers.get("content-type") || "image/jpeg";
-          bgBase64 = `data:${ct};base64,${buf.toString("base64")}`;
+          // Resize to 1500x1500 JPEG to reduce base64 payload
+          const resized = await sharp(buf)
+            .resize(1500, 1500, { fit: "cover", position: "center" })
+            .jpeg({ quality: 85 })
+            .toBuffer();
+          bgBase64 = `data:image/jpeg;base64,${resized.toString("base64")}`;
         }
       } catch {
         // Image fetch failed
@@ -141,7 +146,9 @@ export async function POST(req: NextRequest) {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1500, height: 1500, deviceScaleFactor: 1 });
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 120000 });
+    // Wait a moment for images to render
+    await new Promise(r => setTimeout(r, 1000));
 
     // Wait for font to load
     await page.evaluate(() => document.fonts.ready);
