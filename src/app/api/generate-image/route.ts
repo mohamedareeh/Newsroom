@@ -1,32 +1,39 @@
 // ─── Social Image Generator API ───────────────────────────
 // POST /api/generate-image
-// Composites a 1500x1500 PNG: background image + postwater overlay
-// + pre-rendered text overlay (from client-side canvas).
-// The client renders Dhivehi text using the browser's text engine
-// (which properly handles Thaana script shaping/joining) and sends
-// it as a transparent PNG. This route composites all layers with sharp.
+// Generates a 1500x1500 PNG: background image + postwater overlay
+// + Dhivehi title text using node-canvas for text rendering
+// and sharp for image compositing.
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import sharp from "sharp";
+import { createCanvas, loadImage, registerFont } from "canvas";
 import { readFile } from "fs/promises";
 import { join } from "path";
+
+// Register MVWaheed font
+const fontPath = join(process.cwd(), "public", "fonts", "MVWaheed.otf");
+try {
+  registerFont(fontPath, { family: "MVWaheed" });
+} catch {
+  console.warn("Could not register MVWaheed font");
+}
 
 export async function POST(req: NextRequest) {
   if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { imageUrl, textImageBase64 } = await req.json();
-  if (!textImageBase64) {
-    return NextResponse.json({ error: "Missing textImageBase64" }, { status: 400 });
+  const { title, imageUrl } = await req.json();
+  if (!title) {
+    return NextResponse.json({ error: "Missing title" }, { status: 400 });
   }
 
   try {
     const W = 1500;
     const H = 1500;
 
-    // 1. Start with background: featured image or solid color
+    // 1. Background: featured image or solid color (via sharp)
     let baseImage: sharp.Sharp;
     if (imageUrl) {
       try {
@@ -67,19 +74,54 @@ export async function POST(req: NextRequest) {
         .toBuffer();
       composites.push({ input: watermarkResized, top: 0, left: 0 });
     } catch {
-      // No watermark — skip
+      // No watermark
     }
 
-    // 3. Add text overlay (pre-rendered by client with proper Thaana shaping)
-    const textBuffer = Buffer.from(textImageBase64, "base64");
-    // Resize text overlay to match canvas dimensions
-    const textResized = await sharp(textBuffer)
-      .resize(W, H, { fit: "fill" })
-      .png()
-      .toBuffer();
-    composites.push({ input: textResized, top: 0, left: 0 });
+    // 3. Render text using node-canvas (transparent PNG)
+    const textCanvas = createCanvas(W, H);
+    const ctx = textCanvas.getContext("2d");
 
-    // 4. Composite and export
+    const fontSize = 72;
+    const lineHeight = fontSize * 1.8;
+    const padding = 100;
+    const maxWidth = W - padding * 2;
+    const bottomPadding = 100;
+
+    ctx.font = `${fontSize}px MVWaheed`;
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.direction = "rtl";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 3;
+
+    // Word-wrap using measureText
+    const words = title.split(/\s+/);
+    const lines: string[] = [];
+    let currentLine = "";
+    for (const word of words) {
+      const testLine = currentLine ? currentLine + " " + word : word;
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+
+    // Draw lines centered, anchored to bottom
+    const totalHeight = lines.length * lineHeight;
+    const startY = H - bottomPadding - totalHeight + lineHeight;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], W / 2, startY + i * lineHeight);
+    }
+
+    const textPng = textCanvas.toBuffer("image/png");
+    composites.push({ input: textPng, top: 0, left: 0 });
+
+    // 4. Composite all layers
     const pngBuffer = await baseImage
       .composite(composites)
       .png({ quality: 90 })

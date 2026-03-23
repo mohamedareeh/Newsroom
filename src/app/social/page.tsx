@@ -70,80 +70,16 @@ export default function SocialPage() {
     fetchFeed();
   }, [fetchFeed]);
 
-  // ── Render text via SVG foreignObject (uses browser's native text engine) ──
-  const renderTextImage = useCallback(async (title: string): Promise<string> => {
-    const escaped = title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-    // SVG with foreignObject — the browser renders HTML text natively
-    // which properly handles Thaana script shaping and word spacing
-    const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1500">
-      <defs>
-        <style>
-          @font-face {
-            font-family: "MVWaheed";
-            src: url("${window.location.origin}/fonts/MVWaheed.otf") format("opentype");
-          }
-        </style>
-      </defs>
-      <foreignObject width="1500" height="1500">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="
-          width: 1500px; height: 1500px;
-          display: flex; align-items: flex-end; justify-content: center;
-          padding: 80px 100px;
-          box-sizing: border-box;
-        ">
-          <div style="
-            font-family: MVWaheed, Faruma, sans-serif;
-            font-size: 72px;
-            line-height: 1.8;
-            color: white;
-            direction: rtl;
-            text-align: center;
-            text-shadow: 0 3px 12px rgba(0,0,0,0.7);
-            max-width: 1300px;
-            width: 100%;
-          ">${escaped}</div>
-        </div>
-      </foreignObject>
-    </svg>`;
-
-    // Load SVG as an image, then draw to canvas to get PNG
-    const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(svgBlob);
-
-    const img = document.createElement("img");
-    img.width = 1500;
-    img.height = 1500;
-
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("SVG render failed"));
-      img.src = url;
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = 1500;
-    canvas.height = 1500;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0, 1500, 1500);
-    URL.revokeObjectURL(url);
-
-    return canvas.toDataURL("image/png").split(",")[1];
-  }, []);
-
-  // ── Generate image ──
+  // ── Generate image (fully server-side) ──
   const generateImage = useCallback(async (item: FeedItem) => {
     setGeneratingFor(item.link);
     try {
-      // Render text via HTML (browser text engine handles Thaana properly)
-      const textImageBase64 = await renderTextImage(item.title);
-
       const res = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          title: item.title,
           imageUrl: item.imageUrl || "",
-          textImageBase64,
         }),
       });
       if (!res.ok) {
@@ -161,7 +97,7 @@ export default function SocialPage() {
       setError(err instanceof Error ? err.message : "Image generation failed");
       setGeneratingFor("");
     }
-  }, [renderTextImage]);
+  }, []);
 
   // ── Send to Telegram ──
   const sendToTelegram = useCallback(async (item: FeedItem) => {
