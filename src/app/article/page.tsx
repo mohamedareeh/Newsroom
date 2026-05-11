@@ -15,9 +15,15 @@ import {
   Sparkles,
   PenLine,
   RotateCcw,
+  GitCompareArrows,
+  ShieldCheck,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import WordPressPublisher from "@/components/WordPressPublisher";
+import SelectionAITextarea from "@/components/SelectionAITextarea";
+import DiffView from "@/components/DiffView";
+import FactCheckPanel from "@/components/FactCheckPanel";
+import SuggestButton from "@/components/SuggestButton";
 
 interface ArticleFields {
   title: string;
@@ -395,8 +401,74 @@ function ArticlePageInner() {
             isManual={isManualMode}
           />
         )}
+
+        {/* Diff view (only meaningful with an original AI version) */}
+        {done && fieldsInitialized.current && originalFields && (
+          <DiffToggleCard original={originalFields} current={fields} />
+        )}
+
+        {/* Fact-check */}
+        {done && fieldsInitialized.current && fields.content.trim() && (
+          <GlassCard className="p-5 sm:p-6 animate-fade-in">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <p className="text-xs font-semibold text-primary uppercase tracking-wider">
+                Fact-check
+              </p>
+            </div>
+            <FactCheckPanel title={fields.title} content={fields.content} />
+          </GlassCard>
+        )}
       </div>
     </div>
+  );
+}
+
+function DiffToggleCard({
+  original,
+  current,
+}: {
+  original: ArticleFields;
+  current: ArticleFields;
+}) {
+  const [open, setOpen] = useState(false);
+  const changed =
+    original.title !== current.title ||
+    original.content !== current.content;
+  return (
+    <GlassCard className="p-4 sm:p-5 animate-fade-in">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-2"
+      >
+        <span className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+          <GitCompareArrows className="w-4 h-4" />
+          Compare to AI Original
+          {changed && (
+            <span className="text-faint font-normal normal-case tracking-normal">
+              (you've edited it)
+            </span>
+          )}
+        </span>
+        <span className="text-xs text-muted">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && (
+        <div className="mt-4 space-y-4">
+          <DiffView
+            label="Title"
+            before={original.title || "(none)"}
+            after={current.title || "(none)"}
+            rtl
+          />
+          <DiffView
+            label="Content"
+            before={original.content || "(empty)"}
+            after={current.content || "(empty)"}
+            rtl
+          />
+        </div>
+      )}
+    </GlassCard>
   );
 }
 
@@ -474,11 +546,21 @@ function EditableSections({
         <div className="p-5 sm:p-6">
           <div className="flex items-center justify-between mb-3">
             <SectionHeader label="Title" />
-            <CopyBtn
-              onClick={() => onCopy(fields.title, "title")}
-              copied={copiedSection === "title"}
-              disabled={!fields.title}
-            />
+            <div className="flex items-center gap-1">
+              <SuggestButton
+                kind="headlines"
+                content={fields.content}
+                title={fields.title}
+                onPick={(s) => onChange("title", s)}
+                label="Suggest"
+                compact
+              />
+              <CopyBtn
+                onClick={() => onCopy(fields.title, "title")}
+                copied={copiedSection === "title"}
+                disabled={!fields.title}
+              />
+            </div>
           </div>
           <textarea
             value={fields.title}
@@ -502,9 +584,10 @@ function EditableSections({
             disabled={!fields.content}
           />
         </div>
-        <textarea
+        <SelectionAITextarea
           value={fields.content}
-          onChange={(e) => onChange("content", e.target.value)}
+          onValueChange={(v) => onChange("content", v)}
+          context={fields.content}
           placeholder={isManual ? "ލިޔުމުގެ ތަފްސީލް — Write your article content here…" : ""}
           rows={14}
           dir="rtl"

@@ -13,12 +13,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getSharedSettings } from "@/lib/sharedSettings";
+import { glossaryPromptBlock, GlossaryPayload } from "@/lib/useGlossary";
 
 interface ParaphraseRequest {
   text: string;
   paraphrasingLevel?: "light" | "heavy";
   tone?: "formal" | "casual" | "sensational";
   generateTitle?: boolean;
+  glossary?: GlossaryPayload;
 }
 
 export async function POST(req: NextRequest) {
@@ -37,6 +39,16 @@ export async function POST(req: NextRequest) {
   const level = body.paraphrasingLevel || "light";
   const tone = body.tone || "formal";
   const generateTitle = !!body.generateTitle;
+  const glossaryBlock = glossaryPromptBlock(
+    (body.glossary || []).map((g, i) => ({
+      id: String(i),
+      term: g.term,
+      fullForm: g.fullForm,
+      role: g.role,
+      createdAt: 0,
+      updatedAt: 0,
+    }))
+  );
 
   if (!text) {
     return NextResponse.json({ error: "Please provide text to paraphrase" }, { status: 400 });
@@ -82,7 +94,7 @@ TITLE: Dhivehi headline
 CONTENT: Dhivehi paraphrased article
 
 ORIGINAL TEXT:
-${text}
+${text}${glossaryBlock}
 
 OUTPUT:`
     : `You are an expert Dhivehi journalist and editor. Paraphrase the following text into clean, natural Dhivehi (Thaana script).
@@ -95,7 +107,7 @@ RULES:
 - If the original text is in English, translate AND paraphrase into Dhivehi.
 
 ORIGINAL TEXT:
-${text}
+${text}${glossaryBlock}
 
 PARAPHRASED DHIVEHI TEXT:`;
 

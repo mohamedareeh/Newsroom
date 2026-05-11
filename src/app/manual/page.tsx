@@ -21,13 +21,21 @@ import {
   FilePlus,
   Trash2,
   ChevronDown,
+  BookOpen,
+  Upload,
+  Mic,
+  Image as ImageIcon,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
 import WordPressPublisher from "@/components/WordPressPublisher";
 import GlassSelect from "@/components/GlassSelect";
+import GlossaryPanel from "@/components/GlossaryPanel";
+import SuggestButton from "@/components/SuggestButton";
+import SelectionAITextarea from "@/components/SelectionAITextarea";
 import { useSettings } from "@/lib/useSettings";
 import { useDrafts, DraftFields, isFieldsEmpty } from "@/lib/useDrafts";
+import { useGlossary } from "@/lib/useGlossary";
 
 const EMPTY: DraftFields = {
   title: "",
@@ -61,6 +69,17 @@ export default function ManualPage() {
 
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const initialized = useRef(false);
+
+  // Glossary
+  const { glossary } = useGlossary();
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
+
+  // Dropzone state
+  const [dragging, setDragging] = useState(false);
+  const [dropStatus, setDropStatus] = useState<string>("");
+  const [dropError, setDropError] = useState("");
+  const [featuredImage, setFeaturedImage] = useState<string | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
 
   const update = useCallback(
     <K extends keyof DraftFields>(k: K, v: DraftFields[K]) =>
@@ -199,10 +218,11 @@ export default function ManualPage() {
         paraphrasingLevel: paraLevel,
         tone: paraTone,
         generateTitle,
+        glossary: glossary.map((g) => ({ term: g.term, fullForm: g.fullForm, role: g.role })),
       })
     );
     router.push("/paraphrase");
-  }, [fields, paraLevel, paraTone, router]);
+  }, [fields, paraLevel, paraTone, glossary, router]);
 
   const undoParaphrase = useCallback(() => {
     if (previousContent !== null) {
@@ -215,6 +235,90 @@ export default function ManualPage() {
       setPreviousTitle(null);
     }
   }, [previousContent, previousTitle]);
+
+  // ─── Dropzone & audio transcription ─────────────────────────────
+  const transcribeAudio = useCallback(
+    async (file: File) => {
+      setDropError("");
+      setTranscribing(true);
+      setDropStatus(`Transcribing ${file.name}…`);
+      try {
+        const form = new FormData();
+        form.append("audio", file);
+        const res = await fetch("/api/transcribe", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Transcription failed (${res.status})`);
+        const text = String(data.text || "").trim();
+        if (!text) throw new Error("Empty transcription");
+        setFields((p) => ({
+          ...p,
+          content: p.content.trim() ? `${p.content.trim()}\n\n${text}` : text,
+        }));
+        setDropStatus(`Transcribed: ${file.name}`);
+      } catch (err) {
+        setDropError(err instanceof Error ? err.message : "Transcription failed");
+        setDropStatus("");
+      } finally {
+        setTranscribing(false);
+      }
+    },
+    []
+  );
+
+  const handleFiles = useCallback(
+    async (files: FileList | File[]) => {
+      setDropError("");
+      const arr = Array.from(files);
+      for (const file of arr) {
+        if (file.type.startsWith("image/")) {
+          // Featured image preview only (WP upload not yet wired)
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const url = e.target?.result as string;
+            if (url) setFeaturedImage(url);
+            setDropStatus(`Attached image: ${file.name}`);
+          };
+          reader.readAsDataURL(file);
+        } else if (
+          file.type.startsWith("audio/") ||
+          /\.(mp3|wav|m4a|ogg|aac|webm|flac)$/i.test(file.name)
+        ) {
+          await transcribeAudio(file);
+        } else if (
+          file.type.startsWith("text/") ||
+          /\.(txt|md|markdown)$/i.test(file.name)
+        ) {
+          const text = await file.text();
+          setFields((p) => ({
+            ...p,
+            content: p.content.trim() ? `${p.content.trim()}\n\n${text}` : text,
+          }));
+          setDropStatus(`Loaded text from ${file.name}`);
+        } else {
+          setDropError(`Skipped ${file.name}: unsupported file type.`);
+        }
+      }
+    },
+    [transcribeAudio]
+  );
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer?.types?.includes("Files")) {
+      e.preventDefault();
+      setDragging(true);
+    }
+  }, []);
+  const onDragLeave = useCallback(() => setDragging(false), []);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      if (e.dataTransfer?.files?.length) {
+        handleFiles(e.dataTransfer.files);
+      }
+    },
+    [handleFiles]
+  );
 
   if (!loaded) {
     return (
@@ -230,8 +334,27 @@ export default function ManualPage() {
   const readingMin = Math.max(1, Math.round(wordCount / 200));
 
   return (
-    <div className="min-h-screen pb-28 lg:pb-0">
+    <div
+      className="min-h-screen pb-28 lg:pb-0 relative"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
       <BottomNav />
+
+      {/* Drag overlay */}
+      {dragging && (
+        <div className="fixed inset-0 z-[60] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-3 rounded-3xl border-2 border-dashed glass-strong" style={{ borderColor: "var(--accent)" }} />
+          <div className="glass-strong rounded-2xl px-6 py-5 text-center">
+            <Upload className="w-8 h-8 mx-auto mb-2 text-primary" />
+            <p className="text-sm font-semibold text-primary">Drop to attach</p>
+            <p className="text-xs text-muted mt-1">
+              Images → featured · Audio → transcribed · Text → loaded into content
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Page title */}
@@ -308,6 +431,110 @@ export default function ManualPage() {
           )}
         </div>
 
+        {/* Dropzone toolbar */}
+        <div className="mb-4 glass-soft rounded-2xl p-3 flex items-center gap-3 flex-wrap">
+          <Upload className="w-4 h-4 text-muted shrink-0" />
+          <span className="text-xs text-muted flex-1 min-w-[180px]">
+            Drag-and-drop an image, audio recording, or text file anywhere on this page.
+          </span>
+          <label className="glass-btn-ghost cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium">
+            <Mic className="w-3.5 h-3.5" />
+            {transcribing ? "Transcribing…" : "Upload audio"}
+            <input
+              type="file"
+              accept="audio/*,.mp3,.wav,.m4a,.ogg,.aac,.webm,.flac"
+              hidden
+              onChange={(e) => {
+                if (e.target.files?.length) handleFiles(e.target.files);
+                e.currentTarget.value = "";
+              }}
+              disabled={transcribing}
+            />
+          </label>
+          <label className="glass-btn-ghost cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium">
+            <ImageIcon className="w-3.5 h-3.5" />
+            Image
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                if (e.target.files?.length) handleFiles(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </div>
+
+        {(dropStatus || dropError || featuredImage) && (
+          <div className="mb-4 space-y-2">
+            {dropStatus && (
+              <div className="glass-soft rounded-xl px-3 py-2 text-xs text-secondary flex items-center gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                {dropStatus}
+              </div>
+            )}
+            {dropError && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2 text-xs text-red-600 flex items-center gap-2">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {dropError}
+              </div>
+            )}
+            {featuredImage && (
+              <div className="glass-soft rounded-2xl p-3 flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={featuredImage}
+                  alt="Featured preview"
+                  className="w-20 h-14 object-cover rounded-lg"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-primary">Featured image attached</p>
+                  <p className="text-[10px] text-muted">
+                    Saved locally. WordPress upload not yet wired — you can copy/paste the image manually for now.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFeaturedImage(null)}
+                  className="p-1 text-muted hover:text-red-500"
+                  aria-label="Remove featured image"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Glossary (collapsible) */}
+        <div className="mb-4 glass-soft rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setGlossaryOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+          >
+            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+              <BookOpen className="w-3.5 h-3.5" />
+              Glossary
+              <span className="text-faint font-normal normal-case tracking-normal">
+                ({glossary.length})
+              </span>
+            </span>
+            <ChevronDown className={`w-4 h-4 text-muted transition-transform ${glossaryOpen ? "rotate-180" : ""}`} />
+          </button>
+          {glossaryOpen && (
+            <div className="px-4 pb-4 border-t border-[var(--glass-border-soft)]">
+              <GlossaryPanel
+                onInsert={(text) => {
+                  setFields((p) => ({
+                    ...p,
+                    content: p.content.trim() ? `${p.content} ${text}` : text,
+                  }));
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         <div className="space-y-4">
           {/* PUBLISH (top, for quick access) */}
           <GlassCard className="p-5 sm:p-6">
@@ -340,11 +567,21 @@ export default function ManualPage() {
                     </span>
                   )}
                 </p>
-                <CopyBtn
-                  onClick={() => copy(fields.title, "title")}
-                  copied={copiedSection === "title"}
-                  disabled={!fields.title}
-                />
+                <div className="flex items-center gap-1">
+                  <SuggestButton
+                    kind="headlines"
+                    content={fields.content}
+                    title={fields.title}
+                    onPick={(s) => update("title", s)}
+                    label="Suggest"
+                    compact
+                  />
+                  <CopyBtn
+                    onClick={() => copy(fields.title, "title")}
+                    copied={copiedSection === "title"}
+                    disabled={!fields.title}
+                  />
+                </div>
               </div>
               <textarea
                 value={fields.title}
@@ -377,10 +614,11 @@ export default function ManualPage() {
               />
             </div>
 
-            <textarea
+            <SelectionAITextarea
               value={fields.content}
-              onChange={(e) => update("content", e.target.value)}
-              placeholder="Write or paste your draft here — then tap Paraphrase to clean it up."
+              onValueChange={(v) => update("content", v)}
+              context={fields.content}
+              placeholder="Write or paste your draft here — then tap Paraphrase to clean it up. Select text for inline AI edits."
               rows={14}
               dir="rtl"
               className="dhivehi-output glass-input w-full rounded-xl p-5 text-base resize-y"
@@ -495,10 +733,24 @@ export default function ManualPage() {
 
           {/* TAGS */}
           <GlassCard className="p-5 sm:p-6">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] mb-3" style={{ color: "#10b981" }}>
-              <span className="w-2 h-2 rounded-full" style={{ background: "#10b981" }} />
-              Tags
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: "#10b981" }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: "#10b981" }} />
+                Tags
+              </p>
+              <SuggestButton
+                kind="tags"
+                content={fields.content}
+                title={fields.title}
+                onPick={(s) => {
+                  const next = Array.from(new Set([...fields.tags, s]));
+                  setFields((p) => ({ ...p, tags: next }));
+                  setTagInput(next.join(", "));
+                }}
+                label="Suggest tags"
+                compact
+              />
+            </div>
             <input
               value={tagInput}
               onChange={(e) => {

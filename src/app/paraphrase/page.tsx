@@ -28,6 +28,7 @@ interface ParaphraseRequest {
   tone: "formal" | "casual" | "sensational";
   generateTitle: boolean;
   level?: "light" | "heavy"; // for display
+  glossary?: { term: string; fullForm: string; role?: string }[];
 }
 
 interface Parsed {
@@ -108,6 +109,7 @@ function ParaphraseInner() {
         paraphrasingLevel: req.paraphrasingLevel,
         tone: req.tone,
         generateTitle: req.generateTitle,
+        glossary: req.glossary,
       }),
       signal: controller.signal,
     })

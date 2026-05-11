@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
+import BulkProcessor from "@/components/BulkProcessor";
 import { useSettings } from "@/lib/useSettings";
 import { useBookmarks } from "@/lib/useBookmarks";
 import { DHIVEHI_NEWS_SOURCES, NewsSource } from "@/lib/config";
@@ -95,6 +96,7 @@ export default function Dashboard() {
   const [filter, setFilter] = useState<"all" | "fresh" | "saved">("all");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkUrls, setBulkUrls] = useState<string[] | null>(null);
 
   const [autoScraping, setAutoScraping] = useState(false);
   const [lastAutoScrape, setLastAutoScrape] = useState<Date | null>(null);
@@ -221,6 +223,12 @@ export default function Dashboard() {
     setSelectMode(false);
     setSelected(new Set());
   }, []);
+
+  const processSelectedBulk = useCallback(() => {
+    if (selected.size < 1) return;
+    setBulkUrls(Array.from(selected));
+    exitSelectMode();
+  }, [selected, exitSelectMode]);
 
   const synthesizeSelected = useCallback(() => {
     if (selected.size < 2) return;
@@ -358,6 +366,19 @@ export default function Dashboard() {
         )}
 
         <div className="space-y-6">
+          {/* Bulk processor */}
+          {bulkUrls && bulkUrls.length > 0 && (
+            <BulkProcessor
+              urls={bulkUrls}
+              settings={{
+                paraphrasingLevel: settings.paraphrasingLevel,
+                tone: settings.tone,
+                length: settings.length,
+              }}
+              onClose={() => setBulkUrls(null)}
+            />
+          )}
+
           {/* ── News Discovery ── */}
           <GlassCard className="p-4 sm:p-6">
             <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-4">
@@ -503,17 +524,28 @@ export default function Dashboard() {
                 <div className="glass-soft rounded-xl p-3 mb-3 flex items-center justify-between gap-2 flex-wrap">
                   <p className="text-xs text-muted">
                     {selected.size === 0
-                      ? "Tap up to 5 headlines to combine into one synthesised article."
-                      : `${selected.size} selected · pick ${selected.size < 2 ? "at least 1 more" : "Combine to proceed"}`}
+                      ? "Pick headlines — then Combine (synthesise into one) or Process All (run each through the AI in parallel)."
+                      : `${selected.size} selected`}
                   </p>
-                  <button
-                    onClick={synthesizeSelected}
-                    disabled={selected.size < 2 || selected.size > 5}
-                    className="glass-btn flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg"
-                  >
-                    <Combine className="w-3.5 h-3.5" />
-                    Combine {selected.size > 0 ? `(${selected.size})` : ""}
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={processSelectedBulk}
+                      disabled={selected.size < 1}
+                      className="glass-btn-ghost flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg"
+                      title="Run each through AI rewrite in parallel"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Process All {selected.size > 0 ? `(${selected.size})` : ""}
+                    </button>
+                    <button
+                      onClick={synthesizeSelected}
+                      disabled={selected.size < 2 || selected.size > 5}
+                      className="glass-btn flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg"
+                    >
+                      <Combine className="w-3.5 h-3.5" />
+                      Combine {selected.size > 0 ? `(${selected.size})` : ""}
+                    </button>
+                  </div>
                 </div>
               )}
 
