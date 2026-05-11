@@ -23,6 +23,9 @@ import {
   Bookmark,
   BookmarkCheck,
   X,
+  Combine,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
@@ -90,6 +93,8 @@ export default function Dashboard() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "fresh" | "saved">("all");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [autoScraping, setAutoScraping] = useState(false);
   const [lastAutoScrape, setLastAutoScrape] = useState<Date | null>(null);
@@ -201,6 +206,40 @@ export default function Dashboard() {
       setHeadlinesLoading(false);
     }
   }, [selectedSource, enabledSources, settings.defaultHeadlineCount, mergeHeadlines]);
+
+  // ── Multi-source synthesis ──
+  const toggleSelected = useCallback((link: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(link)) next.delete(link);
+      else next.add(link);
+      return next;
+    });
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelected(new Set());
+  }, []);
+
+  const synthesizeSelected = useCallback(() => {
+    if (selected.size < 2) return;
+    sessionStorage.setItem(
+      "articleRequest",
+      JSON.stringify({
+        endpoint: "/api/synthesize",
+        body: {
+          urls: Array.from(selected),
+          paraphrasingLevel: settings.paraphrasingLevel,
+          tone: settings.tone,
+          length: settings.length,
+        },
+      })
+    );
+    sessionStorage.removeItem("articleResult");
+    exitSelectMode();
+    router.push("/article");
+  }, [selected, settings.paraphrasingLevel, settings.tone, settings.length, router, exitSelectMode]);
 
   // ── Process an article through the AI Spin Engine ──
   const processArticle = useCallback(
@@ -423,22 +462,60 @@ export default function Dashboard() {
           {/* ── Headlines List ── */}
           {(viewHeadlines.length > 0 || headlinesLoading || headlinesError || filter === "saved") && (
             <GlassCard className="p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4 gap-2">
+              <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                 <h2 className="text-xs font-semibold text-muted uppercase tracking-wider truncate">
                   {filter === "saved" ? "Saved Headlines" : "Discovered Headlines"}
                   <span className="ml-2 text-xs text-faint font-normal normal-case tracking-normal">
                     ({viewHeadlines.length})
                   </span>
                 </h2>
-                {headlines.length > 0 && filter !== "saved" && (
-                  <button
-                    onClick={() => setHeadlines([])}
-                    className="text-xs text-muted hover:text-primary transition-colors"
-                  >
-                    Clear
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {!selectMode ? (
+                    <button
+                      onClick={() => setSelectMode(true)}
+                      className="text-xs text-muted hover:text-primary transition-colors flex items-center gap-1.5"
+                      title="Select multiple to combine"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      Select
+                    </button>
+                  ) : (
+                    <button
+                      onClick={exitSelectMode}
+                      className="text-xs text-muted hover:text-primary transition-colors flex items-center gap-1.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Cancel
+                    </button>
+                  )}
+                  {headlines.length > 0 && filter !== "saved" && !selectMode && (
+                    <button
+                      onClick={() => setHeadlines([])}
+                      className="text-xs text-muted hover:text-primary transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {selectMode && (
+                <div className="glass-soft rounded-xl p-3 mb-3 flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-xs text-muted">
+                    {selected.size === 0
+                      ? "Tap up to 5 headlines to combine into one synthesised article."
+                      : `${selected.size} selected · pick ${selected.size < 2 ? "at least 1 more" : "Combine to proceed"}`}
+                  </p>
+                  <button
+                    onClick={synthesizeSelected}
+                    disabled={selected.size < 2 || selected.size > 5}
+                    className="glass-btn flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg"
+                  >
+                    <Combine className="w-3.5 h-3.5" />
+                    Combine {selected.size > 0 ? `(${selected.size})` : ""}
+                  </button>
+                </div>
+              )}
 
               {/* Search + filter chips */}
               <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -507,15 +584,33 @@ export default function Dashboard() {
               <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                 {viewHeadlines.map((h, i) => {
                   const saved = savedSet.has(h.link);
+                  const isSelected = selected.has(h.link);
                   return (
                     <div
                       key={`${h.link}-${i}`}
                       className={`glass-soft p-4 rounded-2xl transition-all duration-200 group animate-fade-in ${
                         h.alreadyProcessed ? "opacity-60" : ""
-                      }`}
-                      style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
+                      } ${isSelected ? "ring-2" : ""}`}
+                      style={{
+                        animationDelay: `${Math.min(i * 30, 300)}ms`,
+                        ...(isSelected ? { boxShadow: "0 0 0 2px var(--accent)" } : {}),
+                      }}
                     >
-                      <div className="mb-2">
+                      <div className="mb-2 flex items-start gap-3">
+                        {selectMode && (
+                          <button
+                            onClick={() => toggleSelected(h.link)}
+                            className="p-0.5 mt-0.5 shrink-0"
+                            aria-label={isSelected ? "Deselect" : "Select"}
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="w-4 h-4" style={{ color: "var(--accent)" }} />
+                            ) : (
+                              <Square className="w-4 h-4 text-muted" />
+                            )}
+                          </button>
+                        )}
+                        <div className="flex-1 min-w-0">
                         <p className="text-sm text-primary leading-snug">{h.title}</p>
                         <div className="flex flex-wrap items-center gap-2 mt-1.5">
                           {h.sourceLabel && (
@@ -534,6 +629,7 @@ export default function Dashboard() {
                               Processed
                             </span>
                           )}
+                        </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

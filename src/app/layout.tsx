@@ -11,6 +11,23 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Creative Network News Desk",
   description: "AI-Powered Dhivehi News Engine — Internal Agency Tool",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "News Desk",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eef1f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#07080b" },
+  ],
 };
 
 const themeBootstrap = `
