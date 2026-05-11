@@ -22,6 +22,7 @@ export const DHIVEHI_NEWS_SOURCES: NewsSource[] = [
   { id: "vaguthu", label: "Vaguthu", rssUrl: "https://vaguthu.mv/feed", scrapeUrl: "https://vaguthu.mv" },
   { id: "oneonline", label: "OneOnline", rssUrl: "https://oneonline.mv/feed", scrapeUrl: "https://oneonline.mv" },
   { id: "thiladhun", label: "Thiladhun", rssUrl: "https://thiladhun.com/feed", scrapeUrl: "https://thiladhun.com" },
+  { id: "voice-mv", label: "Voice.mv", scrapeUrl: "https://voice.mv" },
 ];
 
 // ─── Settings Types ────────────────────────────────────────
