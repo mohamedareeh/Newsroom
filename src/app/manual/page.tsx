@@ -196,6 +196,23 @@ export default function ManualPage() {
         </div>
 
         <div className="space-y-4">
+          {/* PUBLISH (top, for quick access) */}
+          <GlassCard className="p-5 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Send className="w-4 h-4 text-primary" />
+              <p className="text-xs font-semibold text-primary uppercase tracking-wider">Publish</p>
+            </div>
+            <WordPressPublisher
+              title={fields.title}
+              content={fields.content}
+              customFields={{
+                ...(fields.articleLatin ? { article_latin: fields.articleLatin } : {}),
+                ...(fields.socialText ? { article_social_text: fields.socialText } : {}),
+              }}
+              tags={fields.tags.length > 0 ? fields.tags : undefined}
+            />
+          </GlassCard>
+
           {/* TITLE */}
           <GlassCard className="overflow-hidden">
             <div className="h-1" style={{ background: "linear-gradient(to right, var(--accent), transparent)" }} />
@@ -385,23 +402,6 @@ export default function ManualPage() {
                 ))}
               </div>
             )}
-          </GlassCard>
-
-          {/* PUBLISH */}
-          <GlassCard className="p-5 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Send className="w-4 h-4 text-primary" />
-              <p className="text-xs font-semibold text-primary uppercase tracking-wider">Publish</p>
-            </div>
-            <WordPressPublisher
-              title={fields.title}
-              content={fields.content}
-              customFields={{
-                ...(fields.articleLatin ? { article_latin: fields.articleLatin } : {}),
-                ...(fields.socialText ? { article_social_text: fields.socialText } : {}),
-              }}
-              tags={fields.tags.length > 0 ? fields.tags : undefined}
-            />
           </GlassCard>
         </div>
       </div>
