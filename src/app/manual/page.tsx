@@ -1,11 +1,13 @@
 "use client";
 
 // ─── Manual Writer Page ────────────────────────────────────
-// Blank Dhivehi editor with inline paraphrase. The user writes
-// (or pastes) text into the content area and hits "Paraphrase"
-// to have Gemini rewrite it in clean Dhivehi.
+// Blank Dhivehi editor. The Paraphrase button stashes the current
+// content + options to sessionStorage and navigates to /paraphrase,
+// where the user reviews a Before/After view and applies the result
+// back here. If the title is empty, AI generates one too.
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   PenLine,
   Sparkles,
@@ -38,25 +40,86 @@ const EMPTY: Fields = {
   tags: [],
 };
 
+const DRAFT_KEY = "cn-manual-draft";
+
+interface DraftStash {
+  fields: Fields;
+  tagInput: string;
+  paraLevel: "light" | "heavy";
+  paraTone: "formal" | "casual" | "sensational";
+}
+
 export default function ManualPage() {
-  const { settings, loaded } = useSettings();
+  const router = useRouter();
+  const { loaded } = useSettings();
   const [fields, setFields] = useState<Fields>(EMPTY);
   const [tagInput, setTagInput] = useState("");
 
-  // Paraphrase state
-  const [paraphrasing, setParaphrasing] = useState(false);
-  const [paraError, setParaError] = useState("");
+  // Paraphrase options (persisted in draft for restore after round-trip)
   const [paraLevel, setParaLevel] = useState<"light" | "heavy">("light");
   const [paraTone, setParaTone] = useState<"formal" | "casual" | "sensational">("formal");
+
+  // Undo state for the most recent applied paraphrase
   const [previousContent, setPreviousContent] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const [previousTitle, setPreviousTitle] = useState<string | null>(null);
+  const [paraError, setParaError] = useState("");
 
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const initialized = useRef(false);
 
   const update = useCallback(
     <K extends keyof Fields>(k: K, v: Fields[K]) => setFields((p) => ({ ...p, [k]: v })),
     []
   );
+
+  // ─── Restore draft on mount (covers round-trip from /paraphrase) ──
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    // 1) Restore draft if any
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft: DraftStash = JSON.parse(raw);
+        setFields(draft.fields);
+        setTagInput(draft.tagInput);
+        setParaLevel(draft.paraLevel);
+        setParaTone(draft.paraTone);
+      }
+    } catch { /* ignore */ }
+
+    // 2) Apply any returned paraphrase result
+    try {
+      const raw = sessionStorage.getItem("paraphraseResult");
+      if (raw) {
+        const r = JSON.parse(raw) as {
+          title: string;
+          content: string;
+          generatedTitle: boolean;
+        };
+        setFields((prev) => {
+          setPreviousContent(prev.content);
+          setPreviousTitle(prev.title);
+          return {
+            ...prev,
+            content: r.content || prev.content,
+            title: r.generatedTitle && r.title ? r.title : prev.title,
+          };
+        });
+        sessionStorage.removeItem("paraphraseResult");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // ─── Persist draft on changes ────────────────────────────────────
+  useEffect(() => {
+    if (!initialized.current) return;
+    const draft: DraftStash = { fields, tagInput, paraLevel, paraTone };
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch { /* ignore */ }
+  }, [fields, tagInput, paraLevel, paraTone]);
 
   const copy = useCallback(async (text: string, section: string) => {
     if (!text) return;
@@ -65,82 +128,46 @@ export default function ManualPage() {
     setTimeout(() => setCopiedSection(null), 2000);
   }, []);
 
-  const paraphraseContent = useCallback(async () => {
-    if (paraphrasing) return;
+  // ─── Open Paraphrase screen ──────────────────────────────────────
+  const openParaphrase = useCallback(() => {
     const source = fields.content.trim();
     if (!source) {
       setParaError("Write or paste some text in the content area first.");
       return;
     }
-
     setParaError("");
-    setPreviousContent(fields.content);
-    setParaphrasing(true);
-    update("content", "");
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+    const generateTitle = fields.title.trim().length === 0;
 
-    try {
-      const res = await fetch("/api/paraphrase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: source, paraphrasingLevel: paraLevel, tone: paraTone }),
-        signal: controller.signal,
-      });
+    sessionStorage.setItem(
+      "paraphraseRequest",
+      JSON.stringify({
+        text: source,
+        title: fields.title,
+        paraphrasingLevel: paraLevel,
+        tone: paraTone,
+        generateTitle,
+      })
+    );
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Request failed (${res.status})`);
-      }
+    // Persist draft so it's restored when /paraphrase returns here
+    const draft: DraftStash = { fields, tagInput, paraLevel, paraTone };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No stream available");
-
-      const decoder = new TextDecoder();
-      let full = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value, { stream: true }).split("\n");
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const payload = JSON.parse(line.slice(6));
-            if (payload.type === "chunk") {
-              full += payload.text;
-              setFields((p) => ({ ...p, content: full }));
-            } else if (payload.type === "error") {
-              throw new Error(payload.error || "Paraphrasing failed");
-            }
-          } catch (e) {
-            if (e instanceof Error && e.message !== "Unexpected end of JSON input") throw e;
-          }
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      setParaError(err instanceof Error ? err.message : "Paraphrasing failed");
-      // Restore previous content on failure
-      setFields((p) => ({ ...p, content: previousContent ?? p.content }));
-    } finally {
-      setParaphrasing(false);
-      abortRef.current = null;
-    }
-  }, [fields.content, paraLevel, paraTone, paraphrasing, previousContent, update]);
-
-  const stopParaphrase = useCallback(() => {
-    abortRef.current?.abort();
-    setParaphrasing(false);
-  }, []);
+    router.push("/paraphrase");
+  }, [fields, tagInput, paraLevel, paraTone, router]);
 
   const undoParaphrase = useCallback(() => {
     if (previousContent !== null) {
-      update("content", previousContent);
+      setFields((p) => ({
+        ...p,
+        content: previousContent,
+        title: previousTitle ?? p.title,
+      }));
       setPreviousContent(null);
+      setPreviousTitle(null);
     }
-  }, [previousContent, update]);
+  }, [previousContent, previousTitle]);
 
   if (!loaded) {
     return (
@@ -177,6 +204,11 @@ export default function ManualPage() {
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-primary">
                   <span className="w-2 h-2 rounded-full" style={{ background: "var(--accent)" }} />
                   Title
+                  {!fields.title.trim() && fields.content.trim() && (
+                    <span className="ml-2 text-[10px] text-muted normal-case tracking-normal font-medium">
+                      (AI will generate one on Paraphrase)
+                    </span>
+                  )}
                 </p>
                 <CopyBtn
                   onClick={() => copy(fields.title, "title")}
@@ -187,7 +219,7 @@ export default function ManualPage() {
               <textarea
                 value={fields.title}
                 onChange={(e) => update("title", e.target.value)}
-                placeholder="ލިޔުމުގެ ސުރުޚީ — Write your headline…"
+                placeholder="ލިޔުމުގެ ސުރުޚީ — Write your headline (leave blank to auto-generate)…"
                 rows={2}
                 dir="rtl"
                 className="dhivehi-output glass-input w-full rounded-xl p-5 text-2xl font-bold resize-none"
@@ -202,7 +234,6 @@ export default function ManualPage() {
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-primary">
                 <span className="w-2 h-2 rounded-full" style={{ background: "var(--accent)" }} />
                 Content
-                {paraphrasing && <Loader2 className="w-3 h-3 animate-spin text-muted ml-2" />}
               </p>
               <CopyBtn
                 onClick={() => copy(fields.content, "content")}
@@ -252,30 +283,20 @@ export default function ManualPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {!paraphrasing ? (
-                  <button
-                    onClick={paraphraseContent}
-                    disabled={!fields.content.trim()}
-                    className="glass-btn flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Paraphrase Content
-                  </button>
-                ) : (
-                  <button
-                    onClick={stopParaphrase}
-                    className="glass-btn-ghost flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-                  >
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Stop
-                  </button>
-                )}
+                <button
+                  onClick={openParaphrase}
+                  disabled={!fields.content.trim()}
+                  className="glass-btn flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Paraphrase Content
+                </button>
 
-                {previousContent !== null && !paraphrasing && (
+                {previousContent !== null && (
                   <button
                     onClick={undoParaphrase}
                     className="glass-btn-ghost flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-                    title="Restore previous content"
+                    title="Restore previous content/title"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Undo

@@ -1,7 +1,13 @@
 // ─── AI Paraphraser ──────────────────────────────────────
 // POST /api/paraphrase
 // Takes raw text (Dhivehi or English) and returns a paraphrased
-// Dhivehi version with the same meaning. Streams via SSE.
+// Dhivehi version. Optionally generates a headline if requested.
+// Streams via SSE. When generateTitle=true, the output is the
+// structured form:
+//   TITLE: ...
+//   CONTENT: ...
+// When generateTitle=false, the output is just the paraphrased
+// CONTENT body.
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
@@ -12,6 +18,7 @@ interface ParaphraseRequest {
   text: string;
   paraphrasingLevel?: "light" | "heavy";
   tone?: "formal" | "casual" | "sensational";
+  generateTitle?: boolean;
 }
 
 export async function POST(req: NextRequest) {
@@ -29,6 +36,7 @@ export async function POST(req: NextRequest) {
   const text = (body.text || "").trim();
   const level = body.paraphrasingLevel || "light";
   const tone = body.tone || "formal";
+  const generateTitle = !!body.generateTitle;
 
   if (!text) {
     return NextResponse.json({ error: "Please provide text to paraphrase" }, { status: 400 });
@@ -58,7 +66,26 @@ export async function POST(req: NextRequest) {
     sensational: "Use a punchy, attention-grabbing tone suitable for headlines.",
   }[tone];
 
-  const prompt = `You are an expert Dhivehi journalist and editor. Paraphrase the following text into clean, natural Dhivehi (Thaana script).
+  const prompt = generateTitle
+    ? `You are an expert Dhivehi journalist and editor. Paraphrase the following text into clean, natural Dhivehi (Thaana script), and write a compelling Dhivehi headline for it.
+
+RULES:
+- ${levelInstruction}
+- ${toneInstruction}
+- Preserve every fact, name, number, and quote from the original.
+- All output (TITLE and CONTENT) MUST be in Dhivehi (Thaana script). No English.
+- The TITLE should be a punchy headline that captures the story.
+- If the original text is in English, translate AND paraphrase into Dhivehi.
+
+OUTPUT FORMAT (use exactly these labels, nothing else):
+TITLE: Dhivehi headline
+CONTENT: Dhivehi paraphrased article
+
+ORIGINAL TEXT:
+${text}
+
+OUTPUT:`
+    : `You are an expert Dhivehi journalist and editor. Paraphrase the following text into clean, natural Dhivehi (Thaana script).
 
 RULES:
 - ${levelInstruction}
@@ -66,7 +93,6 @@ RULES:
 - Preserve every fact, name, number, and quote from the original.
 - Output ONLY the paraphrased Dhivehi text. No labels, no English, no commentary.
 - If the original text is in English, translate AND paraphrase into Dhivehi.
-- If the original is already Dhivehi, paraphrase in Dhivehi.
 
 ORIGINAL TEXT:
 ${text}
