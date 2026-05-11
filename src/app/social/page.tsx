@@ -149,7 +149,8 @@ export default function SocialPage() {
   }, [generatedImages, socialTexts]);
 
   return (
-    <div className="min-h-screen bg-[#f5f3f0] pb-20 lg:pb-0">
+    <div className="min-h-screen pb-28 lg:pb-0">
+      <BottomNav />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
         {/* Page title */}
         <div className="flex items-center justify-between mb-6">
@@ -343,7 +344,6 @@ export default function SocialPage() {
           </GlassCard>
         )}
       </div>
-      <BottomNav />
     </div>
   );
 }

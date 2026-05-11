@@ -5,15 +5,13 @@ import { ReactNode } from "react";
 export default function GlassCard({
   children,
   className = "",
+  variant = "default",
 }: {
   children: ReactNode;
   className?: string;
+  variant?: "default" | "strong" | "soft";
 }) {
-  return (
-    <div
-      className={`bg-white rounded-2xl border border-gray-100 shadow-sm transition-all duration-200 ${className}`}
-    >
-      {children}
-    </div>
-  );
+  const base =
+    variant === "strong" ? "glass-strong" : variant === "soft" ? "glass-soft" : "glass";
+  return <div className={`${base} ${className}`}>{children}</div>;
 }

@@ -1,5 +1,6 @@
 // ─── Root Layout ───────────────────────────────────────────
-// Imports global styles and the Faruma/Thaana fonts for Dhivehi output.
+// Imports global styles, Faruma/Thaana fonts, and bootstraps the
+// theme (light/dark) before paint to avoid flash.
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -12,21 +13,29 @@ export const metadata: Metadata = {
   description: "AI-Powered Dhivehi News Engine — Internal Agency Tool",
 };
 
+const themeBootstrap = `
+(function(){try{
+  var t = localStorage.getItem('cn-theme');
+  if (!t) { t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+  document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Noto Sans Thaana as fallback for Dhivehi text */}
         <link
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
-      <body className={`${inter.className} antialiased bg-[#f5f3f0] text-[#1a1a1a]`}>
+      <body className={`${inter.className} antialiased`}>
         {children}
       </body>
     </html>

@@ -43,14 +43,14 @@ export default function WriterPage() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-[#1a1a1a] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f3f0] pb-20 lg:pb-0">
+    <div className="min-h-screen pb-28 lg:pb-0">
       <BottomNav />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">

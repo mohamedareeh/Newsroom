@@ -153,7 +153,7 @@ export default function SettingsPage() {
 
   if (!loaded || !userLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f3f0]">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-[#1a1a1a] animate-spin" />
       </div>
     );
@@ -269,7 +269,8 @@ export default function SettingsPage() {
   const inputCls = "w-full bg-[#f5f3f0] border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] focus:outline-none focus:bg-white focus:border-[#1a1a1a] focus:ring-2 focus:ring-black/5 transition-all";
 
   return (
-    <div className="min-h-screen bg-[#f5f3f0] pb-20 lg:pb-0">
+    <div className="min-h-screen pb-28 lg:pb-0">
+      <BottomNav />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
         {/* Page Title */}
         <div className="mb-6">
@@ -893,7 +894,6 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
-      <BottomNav />
     </div>
   );
 }

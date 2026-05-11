@@ -1,11 +1,12 @@
 "use client";
 
 // ─── Login Page ────────────────────────────────────────────
-// Minimal centered card on warm neutral background.
+// Liquid glass centered card on aurora background.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Newspaper, Loader2, AlertCircle, Lock, User } from "lucide-react";
+import GlassCard from "@/components/GlassCard";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,68 +42,64 @@ export default function LoginPage() {
     }
   };
 
-  const inputCls =
-    "w-full bg-[#f5f3f0] border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#1a1a1a] focus:ring-2 focus:ring-black/5 transition-all duration-200";
-
   return (
-    <div className="min-h-screen bg-[#f5f3f0] flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-[400px]">
-        {/* Logo */}
-        <div className="flex justify-center mb-10">
-          <div className="p-3 bg-[#1a1a1a] rounded-2xl">
-            <Newspaper className="w-7 h-7 text-white" />
+        <div className="flex justify-center mb-8">
+          <div
+            className="p-3 rounded-2xl glass shadow-lg"
+            style={{ background: "var(--accent)", color: "var(--accent-fg)" }}
+          >
+            <Newspaper className="w-7 h-7" />
           </div>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <h1 className="text-xl font-semibold text-gray-900 text-center mb-1">
+        <GlassCard variant="strong" className="p-8">
+          <h1 className="text-xl font-semibold text-primary text-center mb-1 tracking-tight">
             Welcome back
           </h1>
-          <p className="text-gray-400 text-sm text-center mb-8">
+          <p className="text-muted text-sm text-center mb-8">
             Sign in to your account
           </p>
 
-          {/* Error message */}
           {error && (
-            <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-100 rounded-xl p-3 text-sm mb-5">
+            <div className="flex items-center gap-2 text-red-600 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm mb-5">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
             </div>
           )}
 
-          {/* Login form */}
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="text-xs font-medium text-gray-500 mb-1.5 block">
+              <label className="text-xs font-medium text-muted mb-1.5 block">
                 Username
               </label>
               <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Enter your username"
                   required
-                  className={`${inputCls} pl-11`}
+                  className="glass-input w-full rounded-xl py-3 pl-11 pr-4 text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-500 mb-1.5 block">
+              <label className="text-xs font-medium text-muted mb-1.5 block">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
-                  className={`${inputCls} pl-11`}
+                  className="glass-input w-full rounded-xl py-3 pl-11 pr-4 text-sm"
                 />
               </div>
             </div>
@@ -110,18 +107,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#333] active:scale-[0.98] text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 mt-1"
+              className="glass-btn w-full flex items-center justify-center gap-2 font-medium py-3 px-6 rounded-xl mt-1"
             >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                "Sign In"
-              )}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign In"}
             </button>
           </form>
-        </div>
+        </GlassCard>
 
-        <p className="text-center text-gray-400 text-xs mt-6">
+        <p className="text-center text-faint text-xs mt-6">
           Access restricted to authorized administrators
         </p>
       </div>
