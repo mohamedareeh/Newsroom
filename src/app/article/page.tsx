@@ -5,7 +5,7 @@
 // manual mode. All sections (title, content, latin, social, tags)
 // are inline-editable before copy/publish.
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -71,6 +71,20 @@ function parseStructured(text: string): ArticleFields | null {
 }
 
 export default function ArticlePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      }
+    >
+      <ArticlePageInner />
+    </Suspense>
+  );
+}
+
+function ArticlePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isManualMode = searchParams.get("mode") === "manual";
