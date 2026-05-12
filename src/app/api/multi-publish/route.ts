@@ -268,6 +268,40 @@ async function resolveTagIds(siteUrl: string, wp: WordPressCreds, tagNames: stri
   return ids;
 }
 
+async function resolveCategoryId(
+  siteUrl: string,
+  wp: WordPressCreds,
+  name: string
+): Promise<number | undefined> {
+  const n = name.trim();
+  if (!n) return undefined;
+  try {
+    const search = await fetch(
+      `${siteUrl}/wp-json/wp/v2/categories?search=${encodeURIComponent(n)}&per_page=10`,
+      { headers: { Authorization: wpAuthHeader(wp) }, signal: AbortSignal.timeout(5000) }
+    );
+    if (search.ok) {
+      const existing = await search.json();
+      const match = Array.isArray(existing)
+        && existing.find((c: { name: string }) => c.name.toLowerCase() === n.toLowerCase());
+      if (match) return match.id;
+    }
+    const create = await fetch(`${siteUrl}/wp-json/wp/v2/categories`, {
+      method: "POST",
+      headers: { Authorization: wpAuthHeader(wp), "Content-Type": "application/json" },
+      body: JSON.stringify({ name: n }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (create.ok) {
+      const created = await create.json();
+      return created.id;
+    }
+  } catch {
+    // fall through — return undefined so publish still proceeds without the category
+  }
+  return undefined;
+}
+
 async function publishDraft(
   wp: WordPressCreds,
   payload: { title: string; content: string; customFields?: Record<string, string>; tags?: string[] }
@@ -275,6 +309,9 @@ async function publishDraft(
   const siteUrl = wp.siteUrl.replace(/\/+$/, "");
   try {
     const tagIds = payload.tags?.length ? await resolveTagIds(siteUrl, wp, payload.tags) : [];
+    const categoryId = wp.defaultCategoryName
+      ? await resolveCategoryId(siteUrl, wp, wp.defaultCategoryName)
+      : undefined;
     const meta: Record<string, string> = {};
     if (payload.customFields) {
       for (const [k, v] of Object.entries(payload.customFields)) if (v) meta[k] = v;
@@ -286,6 +323,7 @@ async function publishDraft(
         title: payload.title,
         content: payload.content,
         status: "draft",
+        ...(categoryId ? { categories: [categoryId] } : {}),
         ...(tagIds.length ? { tags: tagIds } : {}),
         ...(Object.keys(meta).length ? { meta } : {}),
       }),

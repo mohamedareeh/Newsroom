@@ -805,13 +805,15 @@ export default function SettingsPage() {
                     label: "Dhivehi site",
                     key: "wordpressDhivehi" as const,
                     placeholder: "https://dhen.mv",
+                    categoryPlaceholder: "World News",
                   },
                   {
                     label: "English site",
                     key: "wordpressEnglish" as const,
                     placeholder: "https://maldivesinsight.com",
+                    categoryPlaceholder: "World News",
                   },
-                ]).map(({ label, key, placeholder }) => {
+                ]).map(({ label, key, placeholder, categoryPlaceholder }) => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const creds = (shared as any)[key] || { siteUrl: "", username: "", appPassword: "" };
                   return (
@@ -852,6 +854,23 @@ export default function SettingsPage() {
                           placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
                           className={inputCls}
                         />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Default Category
+                        </label>
+                        <input
+                          type="text"
+                          value={creds.defaultCategoryName || ""}
+                          onChange={(e) =>
+                            updateShared({ [key]: { ...creds, defaultCategoryName: e.target.value } })
+                          }
+                          placeholder={categoryPlaceholder}
+                          className={inputCls}
+                        />
+                        <p className="text-[10px] text-gray-400">
+                          Pipeline drafts on this site will be filed under this category. If it doesn't exist, it'll be created.
+                        </p>
                       </div>
                     </div>
                   );

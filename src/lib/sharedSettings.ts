@@ -17,6 +17,8 @@ export interface WordPressCreds {
   siteUrl: string;
   username: string;
   appPassword: string;
+  /** Default WP category name (e.g. "World News"). Pipeline looks it up — or creates it — when publishing. */
+  defaultCategoryName?: string;
 }
 
 export interface SharedSettings {
@@ -48,8 +50,8 @@ export const DEFAULT_SHARED: SharedSettings = {
   composeModel: "gemini-2.5-flash",
   promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
-  wordpressDhivehi: { siteUrl: "", username: "", appPassword: "" },
-  wordpressEnglish: { siteUrl: "", username: "", appPassword: "" },
+  wordpressDhivehi: { siteUrl: "", username: "", appPassword: "", defaultCategoryName: "World News" },
+  wordpressEnglish: { siteUrl: "", username: "", appPassword: "", defaultCategoryName: "World News" },
   telegram: { botToken: "", chatId: "" },
   facebook: { pageAccessToken: "", pageId: "" },
   customSources: [],
