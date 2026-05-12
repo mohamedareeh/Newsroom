@@ -56,6 +56,8 @@ export default function SettingsPage() {
     composeModel: "gemini-2.5-flash",
     promptTemplate: "",
     wordpress: { siteUrl: "", username: "", appPassword: "" },
+    wordpressDhivehi: { siteUrl: "", username: "", appPassword: "" },
+    wordpressEnglish: { siteUrl: "", username: "", appPassword: "" },
     telegram: { botToken: "", chatId: "" },
     facebook: { pageAccessToken: "", pageId: "" },
     customSources: [] as NewsSource[],
@@ -779,6 +781,75 @@ export default function SettingsPage() {
               </div>
             </div>
           </GlassCard>
+          )}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* Pipeline WordPress sites (Admin Only)                */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (
+            <GlassCard className="p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Send className="w-4 h-4 text-[#1a1a1a]" />
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  Multi-Publish Pipeline Sites
+                </h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">
+                The /multi-publish pipeline publishes Dhivehi drafts to the first site and English
+                drafts to the second. If a slot is empty, it falls back to the main WordPress
+                site above.
+              </p>
+              <div className="space-y-6">
+                {([
+                  { label: "Dhivehi site (e.g. dhen.mv)", key: "wordpressDhivehi" as const },
+                  { label: "English site (e.g. maldivesinsight.com)", key: "wordpressEnglish" as const },
+                ]).map(({ label, key }) => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const creds = (shared as any)[key] || { siteUrl: "", username: "", appPassword: "" };
+                  return (
+                    <div key={key} className="space-y-3">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        {label}
+                      </p>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Site URL</label>
+                        <input
+                          type="url"
+                          value={creds.siteUrl}
+                          onChange={(e) => updateShared({ [key]: { ...creds, siteUrl: e.target.value } })}
+                          placeholder="https://yoursite.com"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Username</label>
+                        <input
+                          type="text"
+                          value={creds.username}
+                          onChange={(e) => updateShared({ [key]: { ...creds, username: e.target.value } })}
+                          placeholder="admin"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Application Password
+                        </label>
+                        <input
+                          type="password"
+                          value={creds.appPassword}
+                          onChange={(e) =>
+                            updateShared({ [key]: { ...creds, appPassword: e.target.value } })
+                          }
+                          placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                          className={inputCls}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </GlassCard>
           )}
 
           {/* ════════════════════════════════════════════════════ */}

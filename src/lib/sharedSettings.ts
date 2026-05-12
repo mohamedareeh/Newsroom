@@ -13,16 +13,21 @@ export interface SharedNewsSource {
   scrapeUrl: string;
 }
 
+export interface WordPressCreds {
+  siteUrl: string;
+  username: string;
+  appPassword: string;
+}
+
 export interface SharedSettings {
   geminiApiKey: string;
   geminiModel: string;
   composeModel: string;
   promptTemplate: string;
-  wordpress: {
-    siteUrl: string;
-    username: string;
-    appPassword: string;
-  };
+  wordpress: WordPressCreds; // Default site (legacy + Publisher card)
+  // Multi-publish pipeline: separate sites per language
+  wordpressDhivehi?: WordPressCreds; // dhen.mv
+  wordpressEnglish?: WordPressCreds; // maldivesinsight.com
   telegram: {
     botToken: string;
     chatId: string;
@@ -43,12 +48,26 @@ export const DEFAULT_SHARED: SharedSettings = {
   composeModel: "gemini-2.5-flash",
   promptTemplate: "",
   wordpress: { siteUrl: "", username: "", appPassword: "" },
+  wordpressDhivehi: { siteUrl: "", username: "", appPassword: "" },
+  wordpressEnglish: { siteUrl: "", username: "", appPassword: "" },
   telegram: { botToken: "", chatId: "" },
   facebook: { pageAccessToken: "", pageId: "" },
   customSources: [],
   removedDefaultSourceIds: [],
   enabledSourceIds: [], // empty = all enabled by default
 };
+
+// Resolve WP creds with fallback to the legacy single config.
+export function resolveWP(
+  shared: SharedSettings,
+  language: "dv" | "en"
+): WordPressCreds | null {
+  const specific = language === "dv" ? shared.wordpressDhivehi : shared.wordpressEnglish;
+  if (specific?.siteUrl && specific.username && specific.appPassword) return specific;
+  if (shared.wordpress?.siteUrl && shared.wordpress.username && shared.wordpress.appPassword)
+    return shared.wordpress;
+  return null;
+}
 
 export async function getSharedSettings(): Promise<SharedSettings> {
   try {

@@ -16,6 +16,8 @@ import {
   Command,
   MoreHorizontal,
   X,
+  Globe,
+  FileText,
 } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import CommandPalette from "@/components/CommandPalette";
@@ -25,6 +27,8 @@ const allTabs = [
   { href: "/manual", label: "Manual", icon: PenLine },
   { href: "/writer", label: "Writer", icon: PenTool },
   { href: "/research", label: "Research", icon: Search },
+  { href: "/multi-publish", label: "Publish", icon: Globe },
+  { href: "/report", label: "Report", icon: FileText },
   { href: "/translate", label: "Translate", icon: Languages },
   { href: "/social", label: "Social", icon: Share2 },
   { href: "/settings", label: "Settings", icon: Settings2 },

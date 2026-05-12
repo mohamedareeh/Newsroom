@@ -1,0 +1,659 @@
+"use client";
+
+// ─── Multi-Publish Pipeline Page ──────────────────────────
+// Two-step editorial workflow:
+//   1. Paste URLs → Analyze: scrape + label each (topics, subject
+//      tones in the source). Display labels so the editor can scan.
+//   2. Editor checks N articles → Run pipeline: translate to
+//      Dhivehi (→ dhen.mv) AND paraphrase in English (→
+//      maldivesinsight.com), publish both as drafts.
+
+import { useState, useCallback, useMemo, useRef } from "react";
+import {
+  Loader2,
+  AlertCircle,
+  Sparkles,
+  ListChecks,
+  Send,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  Languages,
+  PenLine,
+  Globe,
+  ClipboardPaste,
+  CheckSquare,
+  Square,
+  Search,
+  X,
+  Filter,
+} from "lucide-react";
+import GlassCard from "@/components/GlassCard";
+import BottomNav from "@/components/BottomNav";
+
+interface SubjectTone {
+  subject: string;
+  tone: "positive" | "negative" | "neutral";
+}
+
+interface Analysis {
+  url: string;
+  ok: true;
+  title: string;
+  source: string;
+  summary: string;
+  topics: string[];
+  subjects: SubjectTone[];
+  publishedAt?: string;
+  excerpt: string;
+}
+
+interface ItemState {
+  url: string;
+  title: string;
+  step:
+    | "queued"
+    | "translating-dv"
+    | "publishing-dv"
+    | "paraphrasing-en"
+    | "publishing-en"
+    | "done"
+    | "error";
+  dv?: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
+  en?: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
+}
+
+const STEP_LABEL: Record<ItemState["step"], string> = {
+  queued: "Queued",
+  "translating-dv": "Translating to Dhivehi…",
+  "publishing-dv": "Publishing to dhen.mv…",
+  "paraphrasing-en": "Paraphrasing in English…",
+  "publishing-en": "Publishing to maldivesinsight.com…",
+  done: "Done",
+  error: "Failed",
+};
+
+function parseUrls(raw: string): string[] {
+  return Array.from(
+    new Set(
+      raw
+        .split(/[\s,]+/)
+        .map((s) => s.trim())
+        .filter((s) => /^https?:\/\//i.test(s))
+    )
+  );
+}
+
+export default function MultiPublishPage() {
+  // Step 1 — paste + analyze
+  const [input, setInput] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyses, setAnalyses] = useState<Analysis[] | null>(null);
+  const [scrapeFailures, setScrapeFailures] = useState<{ url: string; error: string }[]>([]);
+  const [warning, setWarning] = useState("");
+  const [error, setError] = useState("");
+
+  // Step 2 — curate
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [activeTopics, setActiveTopics] = useState<Set<string>>(new Set());
+
+  // Step 3 — run
+  const [running, setRunning] = useState(false);
+  const [items, setItems] = useState<ItemState[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const urls = parseUrls(input);
+
+  const allTopics = useMemo(() => {
+    const set = new Set<string>();
+    analyses?.forEach((a) => a.topics.forEach((t) => set.add(t)));
+    return Array.from(set).sort();
+  }, [analyses]);
+
+  const filtered = useMemo(() => {
+    if (!analyses) return [];
+    const q = search.trim().toLowerCase();
+    return analyses.filter((a) => {
+      if (q && !`${a.title} ${a.summary} ${a.topics.join(" ")} ${a.subjects.map((s) => s.subject).join(" ")}`.toLowerCase().includes(q)) {
+        return false;
+      }
+      if (activeTopics.size > 0 && !a.topics.some((t) => activeTopics.has(t))) {
+        return false;
+      }
+      return true;
+    });
+  }, [analyses, search, activeTopics]);
+
+  const analyze = useCallback(async () => {
+    if (analyzing) return;
+    if (urls.length === 0) {
+      setError("Paste at least one valid http(s) URL.");
+      return;
+    }
+    setAnalyzing(true);
+    setError("");
+    setWarning("");
+    setAnalyses(null);
+    setSelected(new Set());
+    setItems([]);
+    try {
+      const res = await fetch("/api/analyze-articles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Analyze failed (${res.status})`);
+      setAnalyses(Array.isArray(data.analyses) ? data.analyses : []);
+      setScrapeFailures(Array.isArray(data.failures) ? data.failures : []);
+      if (data.warning) setWarning(String(data.warning));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Analyze failed");
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [analyzing, urls]);
+
+  const toggleSelected = useCallback((url: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
+  }, []);
+
+  const toggleTopic = useCallback((t: string) => {
+    setActiveTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  }, []);
+
+  const runPipeline = useCallback(async () => {
+    if (running || selected.size === 0) return;
+    setRunning(true);
+    setError("");
+
+    const orderedUrls = (analyses || []).filter((a) => selected.has(a.url)).map((a) => a.url);
+    setItems(
+      orderedUrls.map((u) => {
+        const a = analyses?.find((x) => x.url === u);
+        return { url: u, title: a?.title || u, step: "queued" };
+      })
+    );
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const res = await fetch("/api/multi-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: orderedUrls }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Run failed (${res.status})`);
+      }
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No stream");
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value, { stream: true }).split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          let payload: { type: string; [k: string]: unknown };
+          try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+          if (payload.type === "step") {
+            const idx = payload.index as number;
+            const step = payload.step as ItemState["step"];
+            setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, step } : it)));
+          } else if (payload.type === "item-done") {
+            const idx = payload.index as number;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const rec = payload.record as any;
+            const errored = !!(rec.dv?.error || rec.en?.error);
+            setItems((prev) =>
+              prev.map((it, i) =>
+                i === idx
+                  ? { ...it, step: errored ? "error" : "done", dv: rec.dv, en: rec.en }
+                  : it
+              )
+            );
+          } else if (payload.type === "error") {
+            setError(String(payload.error || "Pipeline error"));
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Pipeline failed");
+    } finally {
+      setRunning(false);
+      abortRef.current = null;
+    }
+  }, [running, selected, analyses]);
+
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    setRunning(false);
+  }, []);
+
+  const paste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) setInput((prev) => (prev.trim() ? `${prev.trim()}\n${text}` : text));
+    } catch {/* ignore */}
+  }, []);
+
+  return (
+    <div className="min-h-screen pb-28 lg:pb-0">
+      <BottomNav />
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <div className="mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight flex items-center gap-2">
+            <Globe className="w-6 h-6" />
+            Multi-Publish Pipeline
+          </h2>
+          <p className="text-sm text-muted mt-1">
+            Step 1 — paste source URLs. Step 2 — pick which to publish. Step 3 — pipeline translates
+            to Dhivehi (dhen.mv) and paraphrases in English (maldivesinsight.com) as drafts.
+          </p>
+        </div>
+
+        {/* Step 1: Input */}
+        <GlassCard className="p-5 sm:p-6 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Step 1 · Source URLs
+            </p>
+            <button
+              onClick={paste}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted hover:text-primary rounded-lg"
+              title="Paste from clipboard"
+            >
+              <ClipboardPaste className="w-3 h-3" />
+              Paste
+            </button>
+          </div>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={"Paste one URL per line or comma-separated.\n\nhttps://example.com/article-1\nhttps://example.com/article-2\n..."}
+            rows={5}
+            className="glass-input w-full rounded-xl p-4 text-sm resize-y font-mono"
+            disabled={analyzing}
+          />
+          <div className="flex flex-col sm:flex-row gap-3 mt-3 sm:items-center">
+            <div className="flex items-center gap-2 text-xs text-muted">
+              <ListChecks className="w-3.5 h-3.5" />
+              {urls.length} valid URL{urls.length === 1 ? "" : "s"}
+            </div>
+            <button
+              onClick={analyze}
+              disabled={analyzing || urls.length === 0}
+              className="glass-btn sm:ml-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+            >
+              {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {analyzing ? "Analyzing…" : "Analyze"}
+            </button>
+          </div>
+          {error && !analyses && (
+            <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-600 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+          {warning && analyses && (
+            <p className="mt-3 text-xs text-muted">{warning}</p>
+          )}
+          {scrapeFailures.length > 0 && (
+            <details className="mt-3">
+              <summary className="text-xs text-faint cursor-pointer">
+                {scrapeFailures.length} URL{scrapeFailures.length === 1 ? "" : "s"} couldn't be fetched
+              </summary>
+              <div className="space-y-1 mt-1 text-[11px] text-muted">
+                {scrapeFailures.map((f, i) => (
+                  <div key={i} className="truncate">
+                    <span className="text-faint">{f.url}</span> — {f.error}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </GlassCard>
+
+        {/* Step 2: Curate */}
+        {analyses && analyses.length > 0 && (
+          <GlassCard className="p-5 sm:p-6 mb-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wider">
+                Step 2 · Pick what to publish
+              </p>
+              <p className="text-[11px] text-muted">
+                {selected.size} selected
+              </p>
+            </div>
+
+            {/* Search + topic filters */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter by title, summary, subject…"
+                  className="glass-input w-full rounded-xl pl-9 pr-9 py-2 text-sm"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-primary"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={runPipeline}
+                disabled={running || selected.size === 0}
+                className="glass-btn flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium shrink-0"
+              >
+                {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Run ({selected.size})
+              </button>
+            </div>
+
+            {allTopics.length > 0 && (
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <Filter className="w-3.5 h-3.5 text-muted" />
+                {allTopics.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => toggleTopic(t)}
+                    className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${
+                      activeTopics.has(t)
+                        ? "text-primary glass-strong"
+                        : "text-muted glass-soft hover:text-primary"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+                {activeTopics.size > 0 && (
+                  <button
+                    onClick={() => setActiveTopics(new Set())}
+                    className="text-[10px] text-faint hover:text-primary"
+                  >
+                    clear
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Article cards */}
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {filtered.map((a) => (
+                <ArticleRow
+                  key={a.url}
+                  analysis={a}
+                  checked={selected.has(a.url)}
+                  onToggle={() => toggleSelected(a.url)}
+                  disabled={running}
+                />
+              ))}
+              {filtered.length === 0 && (
+                <p className="text-sm text-muted text-center py-6">No articles match the filter.</p>
+              )}
+            </div>
+          </GlassCard>
+        )}
+
+        {analyses && analyses.length === 0 && !analyzing && (
+          <GlassCard className="p-6 text-center">
+            <p className="text-sm text-muted">No articles could be scraped from those URLs.</p>
+          </GlassCard>
+        )}
+
+        {/* Step 3: Run */}
+        {items.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wider">
+                Step 3 · Publishing
+              </p>
+              {running && (
+                <button
+                  onClick={stop}
+                  className="glass-btn-ghost flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+                >
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Stop
+                </button>
+              )}
+            </div>
+            <div className="space-y-3">
+              {items.map((it, i) => (
+                <RunRow key={`${it.url}-${i}`} item={it} />
+              ))}
+            </div>
+            {error && (
+              <GlassCard className="p-4 mt-4">
+                <p className="text-sm text-red-500">{error}</p>
+              </GlassCard>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ArticleRow({
+  analysis,
+  checked,
+  onToggle,
+  disabled,
+}: {
+  analysis: Analysis;
+  checked: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className={`glass-soft rounded-2xl p-3 sm:p-4 flex items-start gap-3 ${
+        checked ? "ring-2" : ""
+      } ${disabled ? "opacity-60" : ""}`}
+      style={checked ? { boxShadow: "0 0 0 2px var(--accent)" } : undefined}
+    >
+      <button
+        onClick={onToggle}
+        disabled={disabled}
+        className="p-0.5 mt-0.5 shrink-0"
+        aria-label={checked ? "Deselect" : "Select"}
+      >
+        {checked ? (
+          <CheckSquare className="w-4 h-4" style={{ color: "var(--accent)" }} />
+        ) : (
+          <Square className="w-4 h-4 text-muted" />
+        )}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-primary leading-snug">{analysis.title}</p>
+        <p className="text-[11px] text-faint mt-0.5 flex items-center gap-1">
+          <ExternalLink className="w-2.5 h-2.5" />
+          <a href={analysis.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+            {analysis.source}
+          </a>
+          {analysis.publishedAt && <> · {new Date(analysis.publishedAt).toLocaleDateString()}</>}
+        </p>
+        {analysis.summary && (
+          <p className="text-xs text-secondary mt-2 leading-relaxed">{analysis.summary}</p>
+        )}
+        {(analysis.topics.length > 0 || analysis.subjects.length > 0) && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {analysis.topics.map((t, i) => (
+              <span
+                key={`t${i}`}
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-muted"
+                style={{ background: "var(--accent-soft)" }}
+              >
+                {t}
+              </span>
+            ))}
+            {analysis.subjects.map((s, i) => (
+              <span
+                key={`s${i}`}
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                style={{
+                  background:
+                    s.tone === "positive"
+                      ? "rgba(16, 185, 129, 0.15)"
+                      : s.tone === "negative"
+                      ? "rgba(239, 68, 68, 0.15)"
+                      : "var(--accent-soft)",
+                  color:
+                    s.tone === "positive"
+                      ? "#10b981"
+                      : s.tone === "negative"
+                      ? "#ef4444"
+                      : "var(--text-muted)",
+                }}
+                title={`Source's tone on ${s.subject}: ${s.tone}`}
+              >
+                {s.subject}
+                {s.tone !== "neutral" && <span className="opacity-75">·{s.tone === "positive" ? "+" : "−"}</span>}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RunRow({ item }: { item: ItemState }) {
+  const isError = item.step === "error";
+  const isDone = item.step === "done";
+  const isWorking = !isDone && !isError && item.step !== "queued";
+  return (
+    <GlassCard className="p-4 sm:p-5">
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 mt-0.5">
+          {isError ? (
+            <XCircle className="w-5 h-5 text-red-500" />
+          ) : isDone ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          ) : isWorking ? (
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-[var(--glass-border)]" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-primary truncate">{item.title}</p>
+          <p className="text-[11px] text-faint truncate flex items-center gap-1">
+            <ExternalLink className="w-3 h-3" />
+            <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+              {hostOf(item.url)}
+            </a>
+          </p>
+          <p className="text-xs text-muted mt-2">{STEP_LABEL[item.step]}</p>
+          {(item.dv || item.en) && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {item.dv && (
+                <Outcome
+                  label="Dhivehi"
+                  icon={<Languages className="w-3.5 h-3.5" />}
+                  outcome={item.dv}
+                  rtl
+                />
+              )}
+              {item.en && (
+                <Outcome
+                  label="English"
+                  icon={<PenLine className="w-3.5 h-3.5" />}
+                  outcome={item.en}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+function Outcome({
+  label,
+  icon,
+  outcome,
+  rtl,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  outcome: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
+  rtl?: boolean;
+}) {
+  return (
+    <div className="glass-soft rounded-xl p-3">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
+          {icon}
+          {label}
+        </span>
+        <span className="text-[10px] text-faint truncate">{outcome.site}</span>
+      </div>
+      {outcome.error ? (
+        <p className="text-xs text-red-500">{outcome.error}</p>
+      ) : (
+        <>
+          <p className="text-xs text-primary truncate" dir={rtl ? "rtl" : undefined}>
+            {outcome.title || "(no title)"}
+          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {outcome.editUrl && (
+              <a
+                href={outcome.editUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="glass-btn flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium"
+              >
+                <Send className="w-3 h-3" />
+                Edit draft
+              </a>
+            )}
+            {outcome.postUrl && (
+              <a
+                href={outcome.postUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[10px] text-muted hover:text-primary"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Preview
+              </a>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
