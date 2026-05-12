@@ -801,9 +801,17 @@ export default function SettingsPage() {
               </p>
               <div className="space-y-6">
                 {([
-                  { label: "Dhivehi site (e.g. dhen.mv)", key: "wordpressDhivehi" as const },
-                  { label: "English site (e.g. maldivesinsight.com)", key: "wordpressEnglish" as const },
-                ]).map(({ label, key }) => {
+                  {
+                    label: "Dhivehi site",
+                    key: "wordpressDhivehi" as const,
+                    placeholder: "https://dhen.mv",
+                  },
+                  {
+                    label: "English site",
+                    key: "wordpressEnglish" as const,
+                    placeholder: "https://maldivesinsight.com",
+                  },
+                ]).map(({ label, key, placeholder }) => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   const creds = (shared as any)[key] || { siteUrl: "", username: "", appPassword: "" };
                   return (
@@ -817,7 +825,7 @@ export default function SettingsPage() {
                           type="url"
                           value={creds.siteUrl}
                           onChange={(e) => updateShared({ [key]: { ...creds, siteUrl: e.target.value } })}
-                          placeholder="https://yoursite.com"
+                          placeholder={placeholder}
                           className={inputCls}
                         />
                       </div>
