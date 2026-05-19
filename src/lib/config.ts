@@ -10,11 +10,10 @@ export interface NewsSource {
 }
 
 // ─── Dhivehi News Sources (defaults) ───────────────────────
+// Dhivehi-language outlets only (English sister sites intentionally excluded).
 export const DHIVEHI_NEWS_SOURCES: NewsSource[] = [
-  { id: "edition-mv", label: "Edition.mv", rssUrl: "https://edition.mv/feed", scrapeUrl: "https://edition.mv" },
   { id: "avas-mv", label: "Avas.mv", rssUrl: "https://avas.mv/feed", scrapeUrl: "https://avas.mv" },
-  { id: "sun-mv-en", label: "Sun.mv (English)", rssUrl: "https://en.sun.mv/feed", scrapeUrl: "https://en.sun.mv" },
-  { id: "sun-mv-dv", label: "Sun.mv (Dhivehi)", rssUrl: "https://sun.mv/feed", scrapeUrl: "https://sun.mv" },
+  { id: "sun-mv-dv", label: "Sun.mv", rssUrl: "https://sun.mv/feed", scrapeUrl: "https://sun.mv" },
   { id: "mihaaru", label: "Mihaaru", rssUrl: "https://mihaaru.com/feed", scrapeUrl: "https://mihaaru.com" },
   { id: "raajje-mv", label: "Raajje.mv", rssUrl: "https://raajje.mv/feed", scrapeUrl: "https://raajje.mv" },
   { id: "psmnews", label: "PSM News", rssUrl: "https://psmnews.mv/feed", scrapeUrl: "https://psmnews.mv" },
@@ -23,15 +22,10 @@ export const DHIVEHI_NEWS_SOURCES: NewsSource[] = [
   { id: "oneonline", label: "OneOnline", rssUrl: "https://oneonline.mv/feed", scrapeUrl: "https://oneonline.mv" },
   { id: "thiladhun", label: "Thiladhun", rssUrl: "https://thiladhun.com/feed", scrapeUrl: "https://thiladhun.com" },
   { id: "voice-mv", label: "Voice.mv", scrapeUrl: "https://voice.mv" },
-  // ── Additional Dhivehi outlets ──
   { id: "sangu-mv", label: "Sangu", rssUrl: "https://sangu.mv/feed", scrapeUrl: "https://sangu.mv" },
-  { id: "atoll-times", label: "Atoll Times", rssUrl: "https://atolltimes.mv/feed", scrapeUrl: "https://atolltimes.mv" },
   { id: "adhadhu", label: "Adhadhu", scrapeUrl: "https://adhadhu.com" },
   { id: "the-press", label: "The Press", scrapeUrl: "https://thepress.mv" },
   { id: "dhuvas", label: "Dhuvas", scrapeUrl: "https://dhuvas.mv" },
-  { id: "times-of-addu", label: "Times of Addu", rssUrl: "https://timesofaddu.com/feed", scrapeUrl: "https://timesofaddu.com" },
-  { id: "corporate-maldives", label: "Corporate Maldives", rssUrl: "https://corporatemaldives.com/feed", scrapeUrl: "https://corporatemaldives.com" },
-  { id: "maldives-independent", label: "Maldives Independent", scrapeUrl: "https://maldivesindependent.com" },
 ];
 
 // ─── Settings Types ────────────────────────────────────────
