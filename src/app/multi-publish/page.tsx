@@ -101,6 +101,8 @@ export default function MultiPublishPage() {
   // Step 3 — run
   const [running, setRunning] = useState(false);
   const [items, setItems] = useState<ItemState[]>([]);
+  const [pipelineInfo, setPipelineInfo] = useState<{ dvSite: string | null; enSite: string | null } | null>(null);
+  const [pipelineWarnings, setPipelineWarnings] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const urls = parseUrls(input);
@@ -177,6 +179,8 @@ export default function MultiPublishPage() {
     if (running || selected.size === 0) return;
     setRunning(true);
     setError("");
+    setPipelineInfo(null);
+    setPipelineWarnings([]);
 
     const orderedUrls = (analyses || []).filter((a) => selected.has(a.url)).map((a) => a.url);
     setItems(
@@ -211,7 +215,14 @@ export default function MultiPublishPage() {
           if (!line.startsWith("data: ")) continue;
           let payload: { type: string; [k: string]: unknown };
           try { payload = JSON.parse(line.slice(6)); } catch { continue; }
-          if (payload.type === "step") {
+          if (payload.type === "started") {
+            setPipelineInfo({
+              dvSite: (payload.dvSite as string) || null,
+              enSite: (payload.enSite as string) || null,
+            });
+          } else if (payload.type === "warning") {
+            setPipelineWarnings((prev) => [...prev, String(payload.message || "")]);
+          } else if (payload.type === "step") {
             const idx = payload.index as number;
             const step = payload.step as ItemState["step"];
             setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, step } : it)));
@@ -440,6 +451,40 @@ export default function MultiPublishPage() {
                 </button>
               )}
             </div>
+
+            {/* Target sites + config warnings */}
+            {(pipelineInfo || pipelineWarnings.length > 0) && (
+              <div className="mb-3 space-y-2">
+                {pipelineInfo && (
+                  <div className="glass-soft rounded-xl px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="flex items-center gap-1.5">
+                      <Languages className="w-3.5 h-3.5 text-muted" />
+                      <span className="text-muted">Dhivehi →</span>
+                      <span className={pipelineInfo.dvSite ? "text-primary font-medium" : "text-red-500"}>
+                        {pipelineInfo.dvSite || "not configured"}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <PenLine className="w-3.5 h-3.5 text-muted" />
+                      <span className="text-muted">English →</span>
+                      <span className={pipelineInfo.enSite ? "text-primary font-medium" : "text-red-500"}>
+                        {pipelineInfo.enSite || "not configured"}
+                      </span>
+                    </span>
+                  </div>
+                )}
+                {pipelineWarnings.map((w, i) => (
+                  <div
+                    key={i}
+                    className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-xs text-amber-600 flex items-start gap-2"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-3">
               {items.map((it, i) => (
                 <RunRow key={`${it.url}-${i}`} item={it} />

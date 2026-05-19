@@ -391,7 +391,23 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        send(controller, "started", { urlsCount: urls.length });
+        send(controller, "started", {
+          urlsCount: urls.length,
+          dvSite: wpDV ? wpDV.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") : null,
+          enSite: wpEN ? wpEN.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") : null,
+        });
+        if (!wpDV) {
+          send(controller, "warning", {
+            message:
+              "Dhivehi site not configured — Dhivehi drafts will be skipped. Set it in Settings → Multi-Publish Pipeline Sites.",
+          });
+        }
+        if (!wpEN) {
+          send(controller, "warning", {
+            message:
+              "English site not configured — English drafts will be skipped (English is NOT sent to the Dhivehi site). Set the English site in Settings → Multi-Publish Pipeline Sites.",
+          });
+        }
 
         // Step 1: scrape all in parallel — keep the order the caller passed in.
         const settled = await Promise.allSettled(urls.map((u) => scrape(u)));

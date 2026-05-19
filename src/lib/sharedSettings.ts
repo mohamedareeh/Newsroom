@@ -59,15 +59,51 @@ export const DEFAULT_SHARED: SharedSettings = {
   enabledSourceIds: [], // empty = all enabled by default
 };
 
-// Resolve WP creds with fallback to the legacy single config.
+function isCompleteWP(c?: WordPressCreds | null): c is WordPressCreds {
+  return !!(c && c.siteUrl && c.username && c.appPassword);
+}
+
+function hostOf(u: string): string {
+  try {
+    return new URL(u).host.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return u.toLowerCase();
+  }
+}
+
+// Resolve the WordPress target for a given language.
+//
+// IMPORTANT: the legacy single `shared.wordpress` config historically points
+// at the Dhivehi site (dhen.mv). We must NEVER silently fall back English
+// content onto it, or English drafts land on the Dhivehi site.
+//
+// Rules:
+//  - "dv": specific Dhivehi config → else legacy single config → else null.
+//  - "en": specific English config ONLY. No legacy fallback (prevents
+//          English-on-dhen.mv). If unset, returns null and the pipeline
+//          reports it instead of mis-publishing.
 export function resolveWP(
   shared: SharedSettings,
   language: "dv" | "en"
 ): WordPressCreds | null {
-  const specific = language === "dv" ? shared.wordpressDhivehi : shared.wordpressEnglish;
-  if (specific?.siteUrl && specific.username && specific.appPassword) return specific;
-  if (shared.wordpress?.siteUrl && shared.wordpress.username && shared.wordpress.appPassword)
-    return shared.wordpress;
+  if (language === "en") {
+    return isCompleteWP(shared.wordpressEnglish) ? shared.wordpressEnglish : null;
+  }
+
+  // Dhivehi
+  if (isCompleteWP(shared.wordpressDhivehi)) return shared.wordpressDhivehi;
+  const legacy = shared.wordpress;
+  if (isCompleteWP(legacy)) {
+    // Guard: if the legacy site is the same host as the explicitly-configured
+    // English site, don't reuse it for Dhivehi either.
+    if (
+      isCompleteWP(shared.wordpressEnglish) &&
+      hostOf(legacy.siteUrl) === hostOf(shared.wordpressEnglish.siteUrl)
+    ) {
+      return null;
+    }
+    return legacy;
+  }
   return null;
 }
 
