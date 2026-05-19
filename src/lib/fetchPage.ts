@@ -71,14 +71,43 @@ export async function fetchPage(
     }
   };
 
+  const blocked = (s: number) => s === 403 || s === 429 || s === 0 || s === 503 || s === 401;
+
   let result = await attempt(UA_DESKTOP);
   // Retry once with a different UA on the classic anti-bot codes.
-  if (!result.ok && (result.status === 403 || result.status === 429 || result.status === 0 || result.status === 503)) {
+  if (!result.ok && blocked(result.status)) {
     await new Promise((r) => setTimeout(r, 400));
     const retry = await attempt(UA_FALLBACK);
     if (retry.ok) return retry;
     result = retry.status ? retry : result;
   }
+
+  // Final fallback: route through the Jina reader proxy. Many Cloudflare-
+  // fronted MV outlets block datacenter IPs (e.g. Vercel) outright — the
+  // direct fetch 403s no matter the headers. Jina fetches from its own
+  // infrastructure and returns simplified HTML, which cheerio can still
+  // parse for links / article text.
+  if (!result.ok && blocked(result.status)) {
+    try {
+      const proxied = await fetch(`https://r.jina.ai/${url}`, {
+        headers: {
+          "x-return-format": "html",
+          "User-Agent": UA_DESKTOP,
+          Accept: "text/html,*/*;q=0.8",
+        },
+        signal: AbortSignal.timeout(Math.max(timeoutMs, 25000)),
+      });
+      if (proxied.ok) {
+        const text = await proxied.text();
+        if (text && text.length > 100) {
+          return { ok: true, status: 200, text, finalUrl: url };
+        }
+      }
+    } catch {
+      /* proxy failed too — fall through to the original error */
+    }
+  }
+
   return result;
 }
 
