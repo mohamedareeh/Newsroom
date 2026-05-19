@@ -13,6 +13,7 @@ import { isAuthenticated } from "@/lib/auth";
 import * as cheerio from "cheerio";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getSharedSettings } from "@/lib/sharedSettings";
+import { fetchPage, describeFetchError } from "@/lib/fetchPage";
 
 interface AnalyzeRequest {
   urls: string[];
@@ -71,15 +72,9 @@ async function scrape(url: string): Promise<
   | { ok: false; error: string }
 > {
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      },
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
-    const html = await res.text();
+    const res = await fetchPage(url, 12000);
+    if (!res.ok) return { ok: false, error: describeFetchError(res) };
+    const html = res.text;
     const $ = cheerio.load(html);
     const publishedAt = extractPublishDate($);
     $(

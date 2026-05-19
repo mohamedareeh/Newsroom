@@ -11,6 +11,7 @@ import * as cheerio from "cheerio";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { kv } from "@vercel/kv";
 import { getSharedSettings } from "@/lib/sharedSettings";
+import { fetchPage, describeFetchError } from "@/lib/fetchPage";
 
 // ── Request body shape ──
 interface ProcessRequest {
@@ -56,19 +57,16 @@ export async function POST(req: NextRequest) {
     // ────────────────────────────────────────────────────────
     // STEP 1: Scrape the article text
     // ────────────────────────────────────────────────────────
-    const pageRes = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" },
-      signal: AbortSignal.timeout(15000),
-    });
+    const pageRes = await fetchPage(url, 15000);
 
     if (!pageRes.ok) {
       return NextResponse.json(
-        { error: `Failed to fetch article: HTTP ${pageRes.status}` },
+        { error: `Couldn't fetch article: ${describeFetchError(pageRes)}` },
         { status: 502 }
       );
     }
 
-    const html = await pageRes.text();
+    const html = pageRes.text;
     const $ = cheerio.load(html);
 
     // Remove noise: scripts, styles, nav, ads, sidebars

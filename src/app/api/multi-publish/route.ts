@@ -12,6 +12,7 @@ import { isAuthenticated } from "@/lib/auth";
 import * as cheerio from "cheerio";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getSharedSettings, resolveWP, WordPressCreds } from "@/lib/sharedSettings";
+import { fetchPage, describeFetchError } from "@/lib/fetchPage";
 import { appendPublication, PublicationRecord } from "@/lib/publicationLog";
 
 interface MultiPublishRequest {
@@ -71,15 +72,9 @@ function extractPublishDate($: cheerio.CheerioAPI): number | undefined {
 
 async function scrape(url: string): Promise<ScrapedArticle | { url: string; error: string }> {
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) return { url, error: `HTTP ${res.status}` };
-    const html = await res.text();
+    const res = await fetchPage(url, 15000);
+    if (!res.ok) return { url, error: describeFetchError(res) };
+    const html = res.text;
     const $ = cheerio.load(html);
 
     const publishedAt = extractPublishDate($);

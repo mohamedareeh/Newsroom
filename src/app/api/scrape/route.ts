@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import * as cheerio from "cheerio";
 import { kv } from "@vercel/kv";
+import { fetchPage, describeFetchError } from "@/lib/fetchPage";
 
 export async function GET(req: NextRequest) {
   // ── Auth guard ──
@@ -20,20 +21,17 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Fetch the homepage HTML
-    const res = await fetch(targetUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" },
-      signal: AbortSignal.timeout(15000),
-    });
+    // Fetch the homepage HTML (browser-like headers + retry)
+    const res = await fetchPage(targetUrl, 15000);
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: `Failed to fetch: HTTP ${res.status}` },
+        { error: `Couldn't fetch ${new URL(targetUrl).hostname}: ${describeFetchError(res)}` },
         { status: 502 }
       );
     }
 
-    const html = await res.text();
+    const html = res.text;
     const $ = cheerio.load(html);
 
     // Extract all <a> tags that look like article links

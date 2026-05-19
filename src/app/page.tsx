@@ -129,28 +129,36 @@ export default function Dashboard() {
     if (autoScraping) return;
     setAutoScraping(true);
 
-    const fetches: Promise<Headline[]>[] = [];
-    for (const source of enabledSources) {
+    // For each source: try RSS first; if it fails (404/403/empty), fall
+    // back to scraping the homepage. Many MV outlets no longer expose RSS.
+    const loadSource = async (source: NewsSource): Promise<Headline[]> => {
+      const tag = (arr: Headline[]) => arr.map((h) => ({ ...h, sourceLabel: source.label }));
       if (source.rssUrl) {
-        fetches.push(
-          fetch(`/api/feeds?url=${encodeURIComponent(source.rssUrl)}&count=${settings.defaultHeadlineCount}`)
-            .then((r) => r.json())
-            .then((data) =>
-              (data.headlines || []).map((h: Headline) => ({ ...h, sourceLabel: source.label }))
-            )
-            .catch(() => [] as Headline[])
-        );
-      } else {
-        fetches.push(
-          fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`)
-            .then((r) => r.json())
-            .then((data) =>
-              (data.headlines || []).map((h: Headline) => ({ ...h, sourceLabel: source.label }))
-            )
-            .catch(() => [] as Headline[])
-        );
+        try {
+          const r = await fetch(
+            `/api/feeds?url=${encodeURIComponent(source.rssUrl)}&count=${settings.defaultHeadlineCount}`
+          );
+          const data = await r.json();
+          if (r.ok && Array.isArray(data.headlines) && data.headlines.length > 0) {
+            return tag(data.headlines);
+          }
+        } catch {
+          /* fall through to scrape */
+        }
       }
-    }
+      if (source.scrapeUrl) {
+        try {
+          const r = await fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`);
+          const data = await r.json();
+          if (r.ok && Array.isArray(data.headlines)) return tag(data.headlines);
+        } catch {
+          /* give up on this source */
+        }
+      }
+      return [];
+    };
+
+    const fetches = enabledSources.map((s) => loadSource(s));
 
     const results = await Promise.allSettled(fetches);
     const allHeadlines: Headline[] = [];
@@ -187,17 +195,41 @@ export default function Dashboard() {
     setHeadlinesLoading(true);
     setHeadlinesError("");
     try {
-      let data;
+      let headlines: Headline[] = [];
+      let lastError = "";
+
+      // Try RSS first
       if (source.rssUrl) {
-        const res = await fetch(`/api/feeds?url=${encodeURIComponent(source.rssUrl)}&count=${settings.defaultHeadlineCount}`);
-        data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to fetch");
-      } else {
-        const res = await fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`);
-        data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to scrape");
+        try {
+          const res = await fetch(
+            `/api/feeds?url=${encodeURIComponent(source.rssUrl)}&count=${settings.defaultHeadlineCount}`
+          );
+          const data = await res.json();
+          if (res.ok && Array.isArray(data.headlines) && data.headlines.length > 0) {
+            headlines = data.headlines;
+          } else {
+            lastError = data.error || "RSS feed unavailable";
+          }
+        } catch {
+          lastError = "RSS feed unreachable";
+        }
       }
-      const incoming = (data.headlines || []).map((h: Headline) => ({
+
+      // Fall back to homepage scrape
+      if (headlines.length === 0 && source.scrapeUrl) {
+        const res = await fetch(`/api/scrape?url=${encodeURIComponent(source.scrapeUrl)}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || lastError || "Failed to fetch");
+        }
+        headlines = data.headlines || [];
+      }
+
+      if (headlines.length === 0) {
+        throw new Error(lastError || "No headlines found for this source.");
+      }
+
+      const incoming = headlines.map((h: Headline) => ({
         ...h,
         sourceLabel: source.label,
       }));

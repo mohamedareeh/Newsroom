@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
 import Parser from "rss-parser";
 import { kv } from "@vercel/kv";
+import { fetchPage, describeFetchError } from "@/lib/fetchPage";
 
 const parser = new Parser({
   timeout: 10000,
@@ -32,8 +33,17 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Parse the RSS feed
-    const feed = await parser.parseURL(feedUrl);
+    // Fetch the feed XML ourselves with browser-like headers + retry
+    // (rss-parser's parseURL only sends a bare UA and gets 403'd a lot),
+    // then hand the raw XML to the parser.
+    const page = await fetchPage(feedUrl, 12000);
+    if (!page.ok) {
+      return NextResponse.json(
+        { error: `Couldn't fetch feed (${new URL(feedUrl).hostname}): ${describeFetchError(page)}` },
+        { status: 502 }
+      );
+    }
+    const feed = await parser.parseString(page.text);
     const items = (feed.items || []).slice(0, count + 10); // grab extra for filtering
 
     // Check each item against the 48-hour memory bank
