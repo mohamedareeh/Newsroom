@@ -800,6 +800,10 @@ export default function SettingsPage() {
                 site above.
               </p>
               <div className="space-y-6">
+                <p className="text-[11px] text-gray-500 -mt-3 mb-1">
+                  Settings save automatically as you type — wait a second after pasting, then hit
+                  Test Connection.
+                </p>
                 {([
                   {
                     label: "Dhivehi site",
@@ -826,9 +830,11 @@ export default function SettingsPage() {
                         <input
                           type="url"
                           value={creds.siteUrl}
-                          onChange={(e) => updateShared({ [key]: { ...creds, siteUrl: e.target.value } })}
+                          onChange={(e) => updateShared({ [key]: { ...creds, siteUrl: e.target.value.trim() } })}
                           placeholder={placeholder}
                           className={inputCls}
+                          autoComplete="off"
+                          spellCheck={false}
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -839,20 +845,20 @@ export default function SettingsPage() {
                           onChange={(e) => updateShared({ [key]: { ...creds, username: e.target.value } })}
                           placeholder="admin"
                           className={inputCls}
+                          autoComplete="off"
+                          spellCheck={false}
+                          name={`pipeline-${key}-user`}
                         />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Application Password
                         </label>
-                        <input
-                          type="password"
+                        <PipelineAppPasswordInput
                           value={creds.appPassword}
-                          onChange={(e) =>
-                            updateShared({ [key]: { ...creds, appPassword: e.target.value } })
-                          }
-                          placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                          onChange={(v) => updateShared({ [key]: { ...creds, appPassword: v } })}
                           className={inputCls}
+                          slotKey={key}
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -993,6 +999,54 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── App Password input for a pipeline site with show/hide + paste normalisation ──
+function PipelineAppPasswordInput({
+  value,
+  onChange,
+  className,
+  slotKey,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className: string;
+  slotKey: string;
+}) {
+  const [reveal, setReveal] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={reveal ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onPaste={(e) => {
+          // Normalise pasted Application Passwords — WP shows them with
+          // non-breaking spaces between groups; strip stray whitespace at the
+          // ends but keep the inner spaces (WP accepts both with and without
+          // them via Basic auth).
+          const raw = e.clipboardData.getData("text") ?? "";
+          if (raw && raw !== value) {
+            e.preventDefault();
+            onChange(raw.replace(/^\s+|\s+$/g, ""));
+          }
+        }}
+        placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+        className={`${className} pr-10 font-mono`}
+        autoComplete="new-password"
+        spellCheck={false}
+        name={`pipeline-${slotKey}-pwd`}
+      />
+      <button
+        type="button"
+        onClick={() => setReveal((v) => !v)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        aria-label={reveal ? "Hide password" : "Show password"}
+      >
+        {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
     </div>
   );
 }
