@@ -872,6 +872,7 @@ export default function SettingsPage() {
                           Pipeline drafts on this site will be filed under this category. If it doesn't exist, it'll be created.
                         </p>
                       </div>
+                      <PipelineTestButton slot={key === "wordpressDhivehi" ? "dhivehi" : "english"} />
                     </div>
                   );
                 })}
@@ -992,6 +993,56 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Test connection button for a pipeline WP slot ─────────────
+function PipelineTestButton({ slot }: { slot: "dhivehi" | "english" }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/wordpress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test", slot }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult({ ok: false, msg: data.error || `Test failed (${res.status})` });
+      } else {
+        setResult({
+          ok: true,
+          msg: `Connected as ${data.username}${data.roles?.length ? ` (${data.roles.join(", ")})` : ""} @ ${data.siteUrl}`,
+        });
+      }
+    } catch (e) {
+      setResult({ ok: false, msg: e instanceof Error ? e.message : "Test failed" });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <button
+        onClick={run}
+        disabled={busy}
+        className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#333] active:scale-[0.97] rounded-lg text-sm text-white transition-all disabled:opacity-30"
+      >
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
+        Test Connection
+      </button>
+      {result && (
+        <span
+          className={`flex items-center gap-1.5 text-xs ${result.ok ? "text-green-600" : "text-red-500"}`}
+        >
+          {result.ok ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+          {result.msg}
+        </span>
+      )}
     </div>
   );
 }

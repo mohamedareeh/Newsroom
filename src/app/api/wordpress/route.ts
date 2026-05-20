@@ -8,7 +8,9 @@ import { isAuthenticated } from "@/lib/auth";
 import { getSharedSettings } from "@/lib/sharedSettings";
 
 interface WPRequest {
-  action: "categories" | "publish";
+  action: "categories" | "publish" | "test";
+  /** Which credentials slot to use. Defaults to "main". */
+  slot?: "main" | "dhivehi" | "english";
   title?: string;
   content?: string;
   categoryId?: number;
@@ -76,18 +78,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Read WordPress credentials from shared settings (KV)
+  // Read WordPress credentials from shared settings (KV) — pick the requested slot
   const shared = await getSharedSettings();
-  const wordpress = shared.wordpress;
+  const slot = body.slot || "main";
+  const wordpress =
+    slot === "dhivehi" ? shared.wordpressDhivehi :
+    slot === "english" ? shared.wordpressEnglish :
+    shared.wordpress;
   const { action } = body;
   if (!wordpress?.siteUrl || !wordpress?.username || !wordpress?.appPassword) {
-    return NextResponse.json({ error: "WordPress not configured. Ask an admin to set it up in Settings." }, { status: 400 });
+    return NextResponse.json(
+      { error: `WordPress (${slot}) not configured. Open Settings and fill in the site URL, username, and Application Password.` },
+      { status: 400 }
+    );
   }
 
   // Normalize site URL
   const siteUrl = wordpress.siteUrl.replace(/\/+$/, "");
 
   try {
+    if (action === "test") {
+      const res = await fetch(`${siteUrl}/wp-json/wp/v2/users/me?context=edit`, {
+        headers: { Authorization: wpAuth(wordpress) },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        return NextResponse.json(
+          { error: `WP test failed (${res.status}): ${text.slice(0, 200) || "Authentication or REST API unreachable"}` },
+          { status: 502 }
+        );
+      }
+      const me = await res.json();
+      return NextResponse.json({
+        ok: true,
+        slot,
+        siteUrl,
+        username: me?.name || me?.slug || wordpress.username,
+        roles: me?.roles || [],
+      });
+    }
+
     if (action === "categories") {
       const res = await fetch(`${siteUrl}/wp-json/wp/v2/categories?per_page=100`, {
         headers: { Authorization: wpAuth(wordpress) },

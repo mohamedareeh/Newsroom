@@ -15,14 +15,22 @@ export async function GET() {
 
   // Non-admins get settings but with sensitive values masked
   const admin = await isAdmin();
+  const maskWP = (w?: { siteUrl?: string; username?: string; appPassword?: string; defaultCategoryName?: string }) => ({
+    siteUrl: w?.siteUrl || "",
+    username: w?.username ? "••••" : "",
+    appPassword: w?.appPassword ? "••••" : "",
+    defaultCategoryName: w?.defaultCategoryName || "",
+  });
   return NextResponse.json({
     ...settings,
     geminiApiKey: admin ? settings.geminiApiKey : (settings.geminiApiKey ? "••••••••" : ""),
-    wordpress: admin ? settings.wordpress : {
-      siteUrl: settings.wordpress.siteUrl,
-      username: settings.wordpress.username ? "••••" : "",
-      appPassword: settings.wordpress.appPassword ? "••••" : "",
-    },
+    wordpress: admin ? settings.wordpress : maskWP(settings.wordpress),
+    wordpressDhivehi: admin
+      ? (settings.wordpressDhivehi || { siteUrl: "", username: "", appPassword: "", defaultCategoryName: "" })
+      : maskWP(settings.wordpressDhivehi),
+    wordpressEnglish: admin
+      ? (settings.wordpressEnglish || { siteUrl: "", username: "", appPassword: "", defaultCategoryName: "" })
+      : maskWP(settings.wordpressEnglish),
     telegram: admin ? (settings.telegram || { botToken: "", chatId: "" }) : {
       botToken: settings.telegram?.botToken ? "••••••••" : "",
       chatId: settings.telegram?.chatId || "",
@@ -51,12 +59,21 @@ export async function POST(req: NextRequest) {
 
   try {
     const current = await getSharedSettings();
+    const emptyWP = { siteUrl: "", username: "", appPassword: "" };
     const updated: SharedSettings = {
       geminiApiKey: body.geminiApiKey !== undefined ? body.geminiApiKey : current.geminiApiKey,
       geminiModel: body.geminiModel !== undefined ? body.geminiModel : current.geminiModel,
       composeModel: body.composeModel !== undefined ? body.composeModel : current.composeModel,
       promptTemplate: body.promptTemplate !== undefined ? body.promptTemplate : current.promptTemplate,
       wordpress: body.wordpress !== undefined ? { ...current.wordpress, ...body.wordpress } : current.wordpress,
+      wordpressDhivehi:
+        body.wordpressDhivehi !== undefined
+          ? { ...(current.wordpressDhivehi || emptyWP), ...body.wordpressDhivehi }
+          : current.wordpressDhivehi,
+      wordpressEnglish:
+        body.wordpressEnglish !== undefined
+          ? { ...(current.wordpressEnglish || emptyWP), ...body.wordpressEnglish }
+          : current.wordpressEnglish,
       telegram: body.telegram !== undefined ? { ...(current.telegram || { botToken: "", chatId: "" }), ...body.telegram } : (current.telegram || { botToken: "", chatId: "" }),
       facebook: body.facebook !== undefined ? { ...(current.facebook || { pageAccessToken: "", pageId: "" }), ...body.facebook } : (current.facebook || { pageAccessToken: "", pageId: "" }),
       customSources: body.customSources !== undefined ? body.customSources : current.customSources,
