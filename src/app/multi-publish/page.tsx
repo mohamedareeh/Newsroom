@@ -207,6 +207,7 @@ export default function MultiPublishPage() {
       const reader = res.body?.getReader();
       if (!reader) throw new Error("No stream");
       const decoder = new TextDecoder();
+      let serverDone = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -215,6 +216,13 @@ export default function MultiPublishPage() {
           if (!line.startsWith("data: ")) continue;
           let payload: { type: string; [k: string]: unknown };
           try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+          if (payload.type === "done") {
+            serverDone = true;
+          }
+          if (payload.type === "ping") {
+            // heartbeat — keeps the SSE socket warm during long Gemini awaits
+            continue;
+          }
           if (payload.type === "started") {
             setPipelineInfo({
               dvSite: (payload.dvSite as string) || null,
@@ -241,6 +249,24 @@ export default function MultiPublishPage() {
           } else if (payload.type === "error") {
             setError(String(payload.error || "Pipeline error"));
           }
+        }
+      }
+      // If the stream ended but the server never told us it was done, the
+      // connection was cut mid-pipeline. Surface that explicitly so the user
+      // isn't left staring at a half-finished UI.
+      if (!serverDone) {
+        const unfinished = items.filter((it) => it.step !== "done" && it.step !== "error");
+        if (unfinished.length > 0) {
+          setItems((prev) =>
+            prev.map((it) =>
+              it.step !== "done" && it.step !== "error"
+                ? { ...it, step: "error", dv: it.dv ?? { title: "", site: "—", error: "Connection ended early" } }
+                : it
+            )
+          );
+          setError(
+            `Pipeline connection ended before finishing. ${items.length - unfinished.length}/${items.length} completed — try running the remaining items again.`
+          );
         }
       }
     } catch (err) {

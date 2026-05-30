@@ -385,6 +385,19 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Heartbeat — Gemini's non-streaming generateContent() blocks for
+      // 15-30s per call, leaving the SSE socket idle. Vercel / CDN edges
+      // close idle connections after ~25-30s, which is why the pipeline
+      // appears to "stop" after 2-3 items. Ping every 5s to keep the
+      // connection warm. Wrapped in try/catch in case the controller
+      // is already closed.
+      const heartbeat = setInterval(() => {
+        try {
+          send(controller, "ping", { t: Date.now() });
+        } catch {
+          /* controller closed */
+        }
+      }, 5000);
       try {
         send(controller, "started", {
           urlsCount: urls.length,
@@ -522,6 +535,7 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         send(controller, "error", { error: err instanceof Error ? err.message : "Pipeline failed" });
       } finally {
+        clearInterval(heartbeat);
         controller.close();
       }
     },
