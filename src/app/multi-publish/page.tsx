@@ -27,6 +27,8 @@ import {
   Search,
   X,
   Filter,
+  RotateCcw,
+  Copy,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
@@ -61,6 +63,9 @@ interface ItemState {
     | "error";
   dv?: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
   en?: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
+  startedAt?: number;
+  finishedAt?: number;
+  attempts: number;
 }
 
 const STEP_LABEL: Record<ItemState["step"], string> = {
@@ -175,108 +180,176 @@ export default function MultiPublishPage() {
     });
   }, []);
 
+  // Core runner — accepts an explicit URL list + a function that maps the
+  // upstream item index to the index in our `items` state. This lets us
+  // retry just a subset (failed / single item) without losing completed rows.
+  const runUrls = useCallback(
+    async (urlsToRun: string[], targetIndexFor: (upstreamIdx: number) => number) => {
+      if (urlsToRun.length === 0) return;
+      setRunning(true);
+      setError("");
+      setPipelineInfo(null);
+      setPipelineWarnings([]);
+
+      // Mark the targets as queued and bump attempt count
+      const startedAt = Date.now();
+      setItems((prev) =>
+        prev.map((it, i) => {
+          if (!urlsToRun.includes(it.url)) return it;
+          // Only reset items at indices in the target range.
+          const matchIdx = urlsToRun.indexOf(it.url);
+          if (matchIdx === -1) return it;
+          return {
+            ...it,
+            step: "queued",
+            startedAt,
+            finishedAt: undefined,
+            attempts: (it.attempts ?? 0) + (i === targetIndexFor(matchIdx) ? 1 : 0),
+            dv: undefined,
+            en: undefined,
+          };
+        })
+      );
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const res = await fetch("/api/multi-publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: urlsToRun }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `Run failed (${res.status})`);
+        }
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("No stream");
+        const decoder = new TextDecoder();
+        let serverDone = false;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const lines = decoder.decode(value, { stream: true }).split("\n");
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            let payload: { type: string; [k: string]: unknown };
+            try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+            if (payload.type === "done") {
+              serverDone = true;
+            }
+            if (payload.type === "ping") continue;
+            if (payload.type === "started") {
+              setPipelineInfo({
+                dvSite: (payload.dvSite as string) || null,
+                enSite: (payload.enSite as string) || null,
+              });
+            } else if (payload.type === "warning") {
+              setPipelineWarnings((prev) => [...prev, String(payload.message || "")]);
+            } else if (payload.type === "step") {
+              const upstreamIdx = payload.index as number;
+              const targetIdx = targetIndexFor(upstreamIdx);
+              const step = payload.step as ItemState["step"];
+              setItems((prev) =>
+                prev.map((it, i) =>
+                  i === targetIdx
+                    ? { ...it, step, startedAt: it.startedAt ?? Date.now() }
+                    : it
+                )
+              );
+            } else if (payload.type === "item-done") {
+              const upstreamIdx = payload.index as number;
+              const targetIdx = targetIndexFor(upstreamIdx);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const rec = payload.record as any;
+              const errored = !!(rec.dv?.error || rec.en?.error);
+              setItems((prev) =>
+                prev.map((it, i) =>
+                  i === targetIdx
+                    ? {
+                        ...it,
+                        step: errored ? "error" : "done",
+                        dv: rec.dv,
+                        en: rec.en,
+                        finishedAt: Date.now(),
+                      }
+                    : it
+                )
+              );
+            } else if (payload.type === "error") {
+              setError(String(payload.error || "Pipeline error"));
+            }
+          }
+        }
+        // If the stream ended but the server never told us it was done, the
+        // connection was cut mid-pipeline. Mark only the items WE TRIED to run
+        // (touched by this invocation) as errored — leave previously-completed
+        // ones intact.
+        if (!serverDone) {
+          setItems((prev) =>
+            prev.map((it) => {
+              if (!urlsToRun.includes(it.url)) return it;
+              if (it.step === "done" || it.step === "error") return it;
+              return {
+                ...it,
+                step: "error",
+                finishedAt: Date.now(),
+                dv: it.dv ?? { title: "", site: "—", error: "Connection ended early" },
+              };
+            })
+          );
+          setError(
+            "Pipeline connection ended before finishing — use Retry failed to pick up where it left off."
+          );
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Pipeline failed");
+      } finally {
+        setRunning(false);
+        abortRef.current = null;
+      }
+    },
+    []
+  );
+
+  // Initial run: replaces items list with the selected URLs and runs all.
   const runPipeline = useCallback(async () => {
     if (running || selected.size === 0) return;
-    setRunning(true);
-    setError("");
-    setPipelineInfo(null);
-    setPipelineWarnings([]);
-
     const orderedUrls = (analyses || []).filter((a) => selected.has(a.url)).map((a) => a.url);
     setItems(
       orderedUrls.map((u) => {
         const a = analyses?.find((x) => x.url === u);
-        return { url: u, title: a?.title || u, step: "queued" };
+        return { url: u, title: a?.title || u, step: "queued", attempts: 0 };
       })
     );
+    // upstream index === target index for an initial run
+    await runUrls(orderedUrls, (i) => i);
+  }, [running, selected, analyses, runUrls]);
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+  // Retry only the failed items, in place.
+  const retryFailed = useCallback(async () => {
+    if (running) return;
+    const failed = items.filter((it) => it.step === "error");
+    if (failed.length === 0) return;
+    const failedUrls = failed.map((it) => it.url);
+    // Map upstream index (0..failedUrls-1) to its current index in `items`
+    const targetIndexFor = (upstreamIdx: number) =>
+      items.findIndex((it) => it.url === failedUrls[upstreamIdx]);
+    await runUrls(failedUrls, targetIndexFor);
+  }, [running, items, runUrls]);
 
-    try {
-      const res = await fetch("/api/multi-publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: orderedUrls }),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Run failed (${res.status})`);
-      }
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No stream");
-      const decoder = new TextDecoder();
-      let serverDone = false;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value, { stream: true }).split("\n");
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          let payload: { type: string; [k: string]: unknown };
-          try { payload = JSON.parse(line.slice(6)); } catch { continue; }
-          if (payload.type === "done") {
-            serverDone = true;
-          }
-          if (payload.type === "ping") {
-            // heartbeat — keeps the SSE socket warm during long Gemini awaits
-            continue;
-          }
-          if (payload.type === "started") {
-            setPipelineInfo({
-              dvSite: (payload.dvSite as string) || null,
-              enSite: (payload.enSite as string) || null,
-            });
-          } else if (payload.type === "warning") {
-            setPipelineWarnings((prev) => [...prev, String(payload.message || "")]);
-          } else if (payload.type === "step") {
-            const idx = payload.index as number;
-            const step = payload.step as ItemState["step"];
-            setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, step } : it)));
-          } else if (payload.type === "item-done") {
-            const idx = payload.index as number;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const rec = payload.record as any;
-            const errored = !!(rec.dv?.error || rec.en?.error);
-            setItems((prev) =>
-              prev.map((it, i) =>
-                i === idx
-                  ? { ...it, step: errored ? "error" : "done", dv: rec.dv, en: rec.en }
-                  : it
-              )
-            );
-          } else if (payload.type === "error") {
-            setError(String(payload.error || "Pipeline error"));
-          }
-        }
-      }
-      // If the stream ended but the server never told us it was done, the
-      // connection was cut mid-pipeline. Surface that explicitly so the user
-      // isn't left staring at a half-finished UI.
-      if (!serverDone) {
-        const unfinished = items.filter((it) => it.step !== "done" && it.step !== "error");
-        if (unfinished.length > 0) {
-          setItems((prev) =>
-            prev.map((it) =>
-              it.step !== "done" && it.step !== "error"
-                ? { ...it, step: "error", dv: it.dv ?? { title: "", site: "—", error: "Connection ended early" } }
-                : it
-            )
-          );
-          setError(
-            `Pipeline connection ended before finishing. ${items.length - unfinished.length}/${items.length} completed — try running the remaining items again.`
-          );
-        }
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      setError(err instanceof Error ? err.message : "Pipeline failed");
-    } finally {
-      setRunning(false);
-      abortRef.current = null;
-    }
-  }, [running, selected, analyses]);
+  // Retry a single item, in place.
+  const retryOne = useCallback(
+    async (url: string) => {
+      if (running) return;
+      const targetIndexFor = () => items.findIndex((it) => it.url === url);
+      await runUrls([url], targetIndexFor);
+    },
+    [running, items, runUrls]
+  );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
@@ -463,20 +536,78 @@ export default function MultiPublishPage() {
         {/* Step 3: Run */}
         {items.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <p className="text-xs font-semibold text-muted uppercase tracking-wider">
-                Step 3 · Publishing
-              </p>
-              {running && (
-                <button
-                  onClick={stop}
-                  className="glass-btn-ghost flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
-                >
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Stop
-                </button>
-              )}
-            </div>
+            {(() => {
+              const counts = items.reduce(
+                (acc, it) => {
+                  if (it.step === "done") acc.done++;
+                  else if (it.step === "error") acc.failed++;
+                  else if (it.step !== "queued") acc.running++;
+                  else acc.queued++;
+                  return acc;
+                },
+                { done: 0, failed: 0, running: 0, queued: 0 }
+              );
+              const finished = counts.done + counts.failed;
+              const progressPct = items.length === 0 ? 0 : Math.round((finished / items.length) * 100);
+              return (
+                <GlassCard className="p-4 sm:p-5 mb-3">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-xs font-semibold text-muted uppercase tracking-wider">
+                        Step 3 · Publishing
+                      </p>
+                      <StatPill icon={<CheckCircle2 className="w-3 h-3 text-emerald-500" />} value={counts.done} label="done" />
+                      {counts.failed > 0 && (
+                        <StatPill icon={<XCircle className="w-3 h-3 text-red-500" />} value={counts.failed} label="failed" tone="red" />
+                      )}
+                      {(counts.running > 0 || counts.queued > 0) && (
+                        <StatPill
+                          icon={<Loader2 className={`w-3 h-3 text-muted ${counts.running > 0 ? "animate-spin" : ""}`} />}
+                          value={counts.running + counts.queued}
+                          label="left"
+                        />
+                      )}
+                      <span className="text-[11px] text-faint">
+                        {finished}/{items.length} · {progressPct}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {counts.failed > 0 && !running && (
+                        <button
+                          onClick={retryFailed}
+                          className="glass-btn flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Retry failed ({counts.failed})
+                        </button>
+                      )}
+                      {running && (
+                        <button
+                          onClick={stop}
+                          className="glass-btn-ghost flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+                        >
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Stop
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full h-1.5 glass-soft rounded-full overflow-hidden">
+                    <div
+                      className="h-full transition-all duration-500"
+                      style={{
+                        width: `${progressPct}%`,
+                        background:
+                          counts.failed === 0
+                            ? "var(--accent)"
+                            : "linear-gradient(to right, var(--accent), #f59e0b)",
+                      }}
+                    />
+                  </div>
+                </GlassCard>
+              );
+            })()}
 
             {/* Target sites + config warnings */}
             {(pipelineInfo || pipelineWarnings.length > 0) && (
@@ -513,7 +644,11 @@ export default function MultiPublishPage() {
 
             <div className="space-y-3">
               {items.map((it, i) => (
-                <RunRow key={`${it.url}-${i}`} item={it} />
+                <RunRow
+                  key={`${it.url}-${i}`}
+                  item={it}
+                  onRetry={running ? undefined : () => retryOne(it.url)}
+                />
               ))}
             </div>
             {error && (
@@ -612,13 +747,61 @@ function ArticleRow({
   );
 }
 
-function RunRow({ item }: { item: ItemState }) {
+function StatPill({
+  icon,
+  value,
+  label,
+  tone,
+}: {
+  icon: React.ReactNode;
+  value: number;
+  label: string;
+  tone?: "red";
+}) {
+  return (
+    <span
+      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium glass-soft ${
+        tone === "red" ? "text-red-500" : "text-primary"
+      }`}
+    >
+      {icon}
+      <span>{value}</span>
+      <span className="text-faint font-normal">{label}</span>
+    </span>
+  );
+}
+
+function fmtDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const s = Math.round(ms / 100) / 10;
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = Math.round(s - m * 60);
+  return r === 0 ? `${m}m` : `${m}m${r}s`;
+}
+
+function RunRow({
+  item,
+  onRetry,
+}: {
+  item: ItemState;
+  onRetry?: () => void;
+}) {
   const isError = item.step === "error";
   const isDone = item.step === "done";
   const isWorking = !isDone && !isError && item.step !== "queued";
+  const accent = isError ? "#ef4444" : isDone ? "#10b981" : isWorking ? "var(--accent)" : "var(--glass-border)";
+  const duration =
+    item.startedAt && item.finishedAt ? item.finishedAt - item.startedAt : null;
+
   return (
-    <GlassCard className="p-4 sm:p-5">
-      <div className="flex items-start gap-3">
+    <GlassCard className="p-4 sm:p-5 relative overflow-hidden">
+      {/* Colored side-bar */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1"
+        style={{ background: accent }}
+      />
+      <div className="flex items-start gap-3 pl-2">
         <div className="shrink-0 mt-0.5">
           {isError ? (
             <XCircle className="w-5 h-5 text-red-500" />
@@ -631,14 +814,29 @@ function RunRow({ item }: { item: ItemState }) {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-primary truncate">{item.title}</p>
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <p className="text-sm font-medium text-primary truncate flex-1 min-w-0">
+              {item.title}
+            </p>
+            {item.attempts > 1 && (
+              <span className="text-[10px] text-faint shrink-0">
+                attempt {item.attempts}
+              </span>
+            )}
+          </div>
           <p className="text-[11px] text-faint truncate flex items-center gap-1">
             <ExternalLink className="w-3 h-3" />
             <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
               {hostOf(item.url)}
             </a>
+            {duration !== null && <span className="ml-2">· {fmtDuration(duration)}</span>}
           </p>
-          <p className="text-xs text-muted mt-2">{STEP_LABEL[item.step]}</p>
+          <p
+            className="text-xs mt-2"
+            style={{ color: isError ? "#ef4444" : isDone ? "#10b981" : "var(--text-muted)" }}
+          >
+            {STEP_LABEL[item.step]}
+          </p>
           {(item.dv || item.en) && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {item.dv && (
@@ -655,6 +853,30 @@ function RunRow({ item }: { item: ItemState }) {
                   icon={<PenLine className="w-3.5 h-3.5" />}
                   outcome={item.en}
                 />
+              )}
+            </div>
+          )}
+          {isError && onRetry && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <button
+                onClick={onRetry}
+                className="glass-btn flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Retry
+              </button>
+              {(item.dv?.error || item.en?.error) && (
+                <button
+                  onClick={() => {
+                    const msg = [item.dv?.error, item.en?.error].filter(Boolean).join("\n");
+                    navigator.clipboard.writeText(msg);
+                  }}
+                  className="glass-btn-ghost flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium"
+                  title="Copy error"
+                >
+                  <Copy className="w-3 h-3" />
+                  Copy error
+                </button>
               )}
             </div>
           )}
