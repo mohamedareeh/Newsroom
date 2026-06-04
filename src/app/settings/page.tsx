@@ -1028,21 +1028,21 @@ export default function SettingsPage() {
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Webhooks Key
                   </label>
-                  <input
-                    type="password"
+                  <IftttKeyInput
                     value={shared.ifttt?.webhookKey || ""}
-                    onChange={(e) =>
+                    onChange={(v) =>
                       updateShared({
                         ifttt: {
                           ...(shared.ifttt || { defaultEvent: "news_share" }),
-                          webhookKey: e.target.value.trim(),
+                          webhookKey: v,
                         },
                       })
                     }
-                    placeholder="abcd1234..."
                     className={inputCls}
-                    autoComplete="off"
-                    spellCheck={false}
+                  />
+                  <IftttTestButton
+                    saved={!!shared.ifttt?.webhookKey}
+                    event={shared.ifttt?.defaultEvent || "news_share"}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1074,6 +1074,94 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── IFTTT key input: show/hide + paste normalisation + visible saved state ──
+function IftttKeyInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className: string;
+}) {
+  const [reveal, setReveal] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={reveal ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value.trim())}
+        onPaste={(e) => {
+          const raw = e.clipboardData.getData("text") ?? "";
+          if (raw) {
+            e.preventDefault();
+            onChange(raw.replace(/\s+/g, ""));
+          }
+        }}
+        placeholder="paste your Webhooks key"
+        className={`${className} pr-20 font-mono`}
+        autoComplete="new-password"
+        spellCheck={false}
+        name="ifttt-webhook-key"
+      />
+      <button
+        type="button"
+        onClick={() => setReveal((v) => !v)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+        aria-label={reveal ? "Hide key" : "Show key"}
+      >
+        {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
+      {value && (
+        <span className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] text-emerald-600 font-medium pointer-events-none">
+          saved · {value.length} chars
+        </span>
+      )}
+    </div>
+  );
+}
+
+function IftttTestButton({ saved, event }: { saved: boolean; event: string }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <button
+        onClick={async () => {
+          setBusy(true);
+          setResult(null);
+          try {
+            const res = await fetch("/api/ifttt/test", { method: "POST" });
+            const data = await res.json();
+            setResult({
+              ok: !!data.ok,
+              msg: data.ok
+                ? `Webhook accepted (event: ${event}).`
+                : data.message || data.error || `HTTP ${res.status}`,
+            });
+          } catch (err) {
+            setResult({ ok: false, msg: err instanceof Error ? err.message : "Network error" });
+          } finally {
+            setBusy(false);
+          }
+        }}
+        disabled={busy || !saved}
+        className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#333] active:scale-[0.97] rounded-lg text-xs text-white transition-all disabled:opacity-40"
+        title={saved ? "Send a test ping to IFTTT" : "Paste the key first"}
+      >
+        {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Timer className="w-3.5 h-3.5" />}
+        Test IFTTT
+      </button>
+      {result && (
+        <span className={`flex items-center gap-1.5 text-xs ${result.ok ? "text-green-600" : "text-red-500"}`}>
+          {result.ok ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+          {result.msg}
+        </span>
+      )}
     </div>
   );
 }
