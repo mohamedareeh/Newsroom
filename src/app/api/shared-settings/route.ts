@@ -76,6 +76,10 @@ export async function POST(req: NextRequest) {
           : current.wordpressEnglish,
       telegram: body.telegram !== undefined ? { ...(current.telegram || { botToken: "", chatId: "" }), ...body.telegram } : (current.telegram || { botToken: "", chatId: "" }),
       facebook: body.facebook !== undefined ? { ...(current.facebook || { pageAccessToken: "", pageId: "" }), ...body.facebook } : (current.facebook || { pageAccessToken: "", pageId: "" }),
+      ifttt:
+        body.ifttt !== undefined
+          ? { ...(current.ifttt || { webhookKey: "", defaultEvent: "news_share" }), ...body.ifttt }
+          : (current.ifttt || { webhookKey: "", defaultEvent: "news_share" }),
       customSources: body.customSources !== undefined ? body.customSources : current.customSources,
       removedDefaultSourceIds: body.removedDefaultSourceIds !== undefined ? body.removedDefaultSourceIds : current.removedDefaultSourceIds,
       enabledSourceIds: body.enabledSourceIds !== undefined ? body.enabledSourceIds : current.enabledSourceIds,

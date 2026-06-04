@@ -4,7 +4,7 @@
 // Manage news sources, AI behavior, prompt template, API keys,
 // auto-scrape, WordPress publishing, and general preferences.
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Rss,
   Globe,
@@ -76,16 +76,68 @@ export default function SettingsPage() {
 
   useEffect(() => { fetchShared(); }, [fetchShared]);
 
-  const updateShared = useCallback(async (partial: Record<string, unknown>) => {
-    try {
-      await fetch("/api/shared-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(partial),
-      });
-      fetchShared();
-    } catch { /* ignore */ }
-  }, [fetchShared]);
+  // Optimistic + debounced save. The previous implementation made every
+  // keystroke wait on a POST + GET round-trip — because the input's
+  // `value` prop was bound to server-fetched state, the field appeared
+  // frozen and characters often didn't show up at all.
+  // Now we update local state instantly and debounce the persist by 450ms.
+  const pendingPartial = useRef<Record<string, unknown>>({});
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const updateShared = useCallback((partial: Record<string, unknown>) => {
+    // 1. Optimistic local update — instant UI feedback.
+    setShared((prev) => {
+      const next: typeof prev = { ...prev };
+      for (const [k, v] of Object.entries(partial)) {
+        const cur = (prev as Record<string, unknown>)[k];
+        if (
+          v &&
+          typeof v === "object" &&
+          !Array.isArray(v) &&
+          cur &&
+          typeof cur === "object" &&
+          !Array.isArray(cur)
+        ) {
+          // Shallow-merge nested objects (e.g. ifttt, telegram, wordpressEnglish).
+          (next as Record<string, unknown>)[k] = { ...(cur as object), ...(v as object) };
+        } else {
+          (next as Record<string, unknown>)[k] = v;
+        }
+      }
+      return next;
+    });
+
+    // 2. Accumulate partials and debounce the persist.
+    for (const [k, v] of Object.entries(partial)) {
+      const existing = pendingPartial.current[k];
+      if (
+        v &&
+        typeof v === "object" &&
+        !Array.isArray(v) &&
+        existing &&
+        typeof existing === "object" &&
+        !Array.isArray(existing)
+      ) {
+        pendingPartial.current[k] = { ...(existing as object), ...(v as object) };
+      } else {
+        pendingPartial.current[k] = v;
+      }
+    }
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const toSend = pendingPartial.current;
+      pendingPartial.current = {};
+      try {
+        await fetch("/api/shared-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(toSend),
+        });
+        // No re-fetch — the local state is already authoritative.
+      } catch { /* ignore — user can retry */ }
+    }, 450);
+  }, []);
 
   // Custom source form state
   const [newLabel, setNewLabel] = useState("");
