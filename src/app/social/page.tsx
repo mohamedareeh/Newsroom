@@ -17,6 +17,7 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
+  Zap,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
@@ -46,6 +47,8 @@ export default function SocialPage() {
   const [socialTexts, setSocialTexts] = useState<Map<string, string>>(new Map());
   const [fbSendingFor, setFbSendingFor] = useState("");
   const [fbSentItems, setFbSentItems] = useState<Set<string>>(new Set());
+  const [iftttSendingFor, setIftttSendingFor] = useState("");
+  const [iftttSentItems, setIftttSentItems] = useState<Set<string>>(new Set());
 
   // ── Fetch RSS feed ──
   const fetchFeed = useCallback(async () => {
@@ -119,6 +122,31 @@ export default function SocialPage() {
       setSendError(err instanceof Error ? err.message : "Failed to send to Telegram");
     } finally {
       setSendingFor("");
+    }
+  }, [generatedImages, socialTexts]);
+
+  // ── Send to IFTTT (fans out to Instagram / X / etc. via applets) ──
+  const sendToIFTTT = useCallback(async (item: FeedItem) => {
+    setIftttSendingFor(item.link);
+    setSendError("");
+    try {
+      const dataUrl = generatedImages.get(item.link);
+      if (!dataUrl) throw new Error("No generated image");
+      const base64 = dataUrl.split(",")[1];
+      const customText = socialTexts.get(item.link);
+      const caption = customText?.trim() || item.title;
+      const res = await fetch("/api/ifttt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, caption, link: item.link }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to trigger IFTTT");
+      setIftttSentItems((prev) => new Set(prev).add(item.link));
+    } catch (err: unknown) {
+      setSendError(err instanceof Error ? err.message : "Failed to trigger IFTTT");
+    } finally {
+      setIftttSendingFor("");
     }
   }, [generatedImages, socialTexts]);
 
@@ -196,6 +224,8 @@ export default function SocialPage() {
             const isSent = sentItems.has(item.link);
             const isFbSending = fbSendingFor === item.link;
             const isFbSent = fbSentItems.has(item.link);
+            const isIftttSending = iftttSendingFor === item.link;
+            const isIftttSent = iftttSentItems.has(item.link);
 
             return (
               <GlassCard key={`${item.link}-${i}`} className="p-4 sm:p-5 animate-fade-in">
@@ -285,6 +315,25 @@ export default function SocialPage() {
                               <Facebook className="w-3 h-3" />
                             )}
                             {isFbSent ? "Posted" : "Facebook"}
+                          </button>
+                          <button
+                            onClick={() => sendToIFTTT(item)}
+                            disabled={isIftttSending || isIftttSent}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                              isIftttSent
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                : "bg-gradient-to-r from-[#1a1a1a] to-[#333] hover:shadow-lg hover:shadow-black/10 active:scale-[0.97] text-white disabled:opacity-50"
+                            }`}
+                            title="Fan out to all connected IFTTT applets (Instagram, X, etc.)"
+                          >
+                            {isIftttSending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : isIftttSent ? (
+                              <CheckCircle2 className="w-3 h-3" />
+                            ) : (
+                              <Zap className="w-3 h-3" />
+                            )}
+                            {isIftttSent ? "Sent" : "IFTTT"}
                           </button>
                           <a
                             href={generatedImages.get(item.link)!}

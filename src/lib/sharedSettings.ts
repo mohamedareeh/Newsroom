@@ -38,6 +38,12 @@ export interface SharedSettings {
     pageAccessToken: string;
     pageId: string;
   };
+  /** IFTTT Webhooks bridge — pipeline POSTs to the Maker webhook to fan out to applets. */
+  ifttt?: {
+    webhookKey: string;
+    /** Event name configured in your IFTTT applets (e.g. "news_share"). */
+    defaultEvent: string;
+  };
   // Source management (admin-only)
   customSources: SharedNewsSource[];
   removedDefaultSourceIds: string[];
@@ -54,6 +60,7 @@ export const DEFAULT_SHARED: SharedSettings = {
   wordpressEnglish: { siteUrl: "", username: "", appPassword: "", defaultCategoryName: "World News" },
   telegram: { botToken: "", chatId: "" },
   facebook: { pageAccessToken: "", pageId: "" },
+  ifttt: { webhookKey: "", defaultEvent: "news_share" },
   customSources: [],
   removedDefaultSourceIds: [],
   enabledSourceIds: [], // empty = all enabled by default

@@ -60,6 +60,7 @@ export default function SettingsPage() {
     wordpressEnglish: { siteUrl: "", username: "", appPassword: "" },
     telegram: { botToken: "", chatId: "" },
     facebook: { pageAccessToken: "", pageId: "" },
+    ifttt: { webhookKey: "", defaultEvent: "news_share" },
     customSources: [] as NewsSource[],
     removedDefaultSourceIds: [] as string[],
     enabledSourceIds: [] as string[],
@@ -996,6 +997,80 @@ export default function SettingsPage() {
               </div>
             </div>
           </GlassCard>
+          )}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* IFTTT Webhooks (Admin Only)                          */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (
+            <GlassCard className="p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Send className="w-4 h-4 text-[#1a1a1a]" />
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  IFTTT Webhooks
+                </h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">
+                Fan out social posts to Instagram, X, LinkedIn, Pinterest, etc. via IFTTT applets.
+                Get your key at <a href="https://ifttt.com/maker_webhooks" target="_blank" rel="noopener noreferrer" className="underline">ifttt.com/maker_webhooks</a>,
+                then make one applet per platform with trigger "Webhooks → Receive a web request"
+                using the event name below. Each applet receives:
+                {" "}<code className="bg-[#f0ede8] px-1 rounded">{"{{Value1}}"}</code> = image URL,
+                {" "}<code className="bg-[#f0ede8] px-1 rounded">{"{{Value2}}"}</code> = caption,
+                {" "}<code className="bg-[#f0ede8] px-1 rounded">{"{{Value3}}"}</code> = source link.
+              </p>
+              <p className="text-[11px] text-gray-400 mb-5">
+                The generated PNG is uploaded to <strong>Vercel Blob</strong> first so IFTTT can fetch
+                it. Enable it once: Vercel dashboard → your project → Storage → Create → Blob.
+              </p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Webhooks Key
+                  </label>
+                  <input
+                    type="password"
+                    value={shared.ifttt?.webhookKey || ""}
+                    onChange={(e) =>
+                      updateShared({
+                        ifttt: {
+                          ...(shared.ifttt || { defaultEvent: "news_share" }),
+                          webhookKey: e.target.value.trim(),
+                        },
+                      })
+                    }
+                    placeholder="abcd1234..."
+                    className={inputCls}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Default Event Name
+                  </label>
+                  <input
+                    type="text"
+                    value={shared.ifttt?.defaultEvent || ""}
+                    onChange={(e) =>
+                      updateShared({
+                        ifttt: {
+                          ...(shared.ifttt || { webhookKey: "" }),
+                          defaultEvent: e.target.value.trim(),
+                        },
+                      })
+                    }
+                    placeholder="news_share"
+                    className={inputCls}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <p className="text-[10px] text-gray-400">
+                    Use the same event name in every IFTTT applet you want this button to trigger.
+                  </p>
+                </div>
+              </div>
+            </GlassCard>
           )}
         </div>
       </div>
