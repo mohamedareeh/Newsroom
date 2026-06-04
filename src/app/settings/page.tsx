@@ -1130,7 +1130,12 @@ export default function SettingsPage() {
   );
 }
 
-// ── IFTTT key input: show/hide + paste normalisation + visible saved state ──
+// ── IFTTT key input: UNCONTROLLED with explicit Save button. ──
+// Why uncontrolled: the controlled version was rendering with value
+// from server-fetched state, and a stale fetch landing mid-typing
+// could clobber the user's input. Uncontrolled means the DOM owns
+// the value while the user is editing it, and we only push it to
+// the parent when they click Save (or blur the field after editing).
 function IftttKeyInput({
   value,
   onChange,
@@ -1140,39 +1145,86 @@ function IftttKeyInput({
   onChange: (v: string) => void;
   className: string;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [reveal, setReveal] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const lastSavedRef = useRef(value);
+
+  // When the parent value changes (e.g. after initial load), sync the field
+  // ONLY if the user hasn't started editing.
+  useEffect(() => {
+    if (!dirty && inputRef.current && inputRef.current.value !== value) {
+      inputRef.current.value = value;
+      lastSavedRef.current = value;
+    }
+  }, [value, dirty]);
+
+  const save = () => {
+    if (!inputRef.current) return;
+    const next = inputRef.current.value.replace(/\s+/g, "");
+    inputRef.current.value = next; // strip whitespace visually too
+    if (next === lastSavedRef.current) {
+      setDirty(false);
+      return;
+    }
+    onChange(next);
+    lastSavedRef.current = next;
+    setDirty(false);
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 1500);
+  };
+
   return (
-    <div className="relative">
-      <input
-        type={reveal ? "text" : "password"}
-        value={value}
-        onChange={(e) => onChange(e.target.value.trim())}
-        onPaste={(e) => {
-          const raw = e.clipboardData.getData("text") ?? "";
-          if (raw) {
-            e.preventDefault();
-            onChange(raw.replace(/\s+/g, ""));
-          }
-        }}
-        placeholder="paste your Webhooks key"
-        className={`${className} pr-20 font-mono`}
-        autoComplete="new-password"
-        spellCheck={false}
-        name="ifttt-webhook-key"
-      />
-      <button
-        type="button"
-        onClick={() => setReveal((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-        aria-label={reveal ? "Hide key" : "Show key"}
-      >
-        {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
-      {value && (
-        <span className="absolute right-10 top-1/2 -translate-y-1/2 text-[10px] text-emerald-600 font-medium pointer-events-none">
-          saved · {value.length} chars
-        </span>
-      )}
+    <div className="space-y-2">
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type={reveal ? "text" : "password"}
+          defaultValue={value}
+          onInput={() => setDirty(true)}
+          onBlur={save}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              save();
+            }
+          }}
+          placeholder="paste your Webhooks key (then click Save)"
+          className={`${className} pr-12 font-mono`}
+          autoComplete="off"
+          spellCheck={false}
+          name="ifttt-webhook-key"
+        />
+        <button
+          type="button"
+          onClick={() => setReveal((v) => !v)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          aria-label={reveal ? "Hide key" : "Show key"}
+        >
+          {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+      <div className="flex items-center gap-3 text-xs">
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty}
+          className="px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#333] text-white rounded-lg transition-all disabled:opacity-40"
+        >
+          {dirty ? "Save key" : "Saved"}
+        </button>
+        {savedFlash && (
+          <span className="flex items-center gap-1 text-emerald-600">
+            <CheckCircle className="w-3.5 h-3.5" />
+            Saved to server
+          </span>
+        )}
+        {!savedFlash && value && !dirty && (
+          <span className="text-gray-400">{value.length} characters stored</span>
+        )}
+        {dirty && <span className="text-amber-600">Unsaved changes — click Save (or press Enter)</span>}
+      </div>
     </div>
   );
 }
