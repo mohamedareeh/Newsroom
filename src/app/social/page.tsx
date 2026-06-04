@@ -141,7 +141,16 @@ export default function SocialPage() {
         body: JSON.stringify({ imageBase64: base64, caption, link: item.link }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to trigger IFTTT");
+      if (!res.ok) {
+        const diag = data.diagnostic
+          ? `\n\n— Env vars visible to the function: ${
+              data.diagnostic.envKeysSeen?.length
+                ? data.diagnostic.envKeysSeen.join(", ")
+                : "(none — store isn't connected to this project yet)"
+            }\n— ${data.diagnostic.hint || ""}`
+          : "";
+        throw new Error((data.error || "Failed to trigger IFTTT") + diag);
+      }
       setIftttSentItems((prev) => new Set(prev).add(item.link));
     } catch (err: unknown) {
       setSendError(err instanceof Error ? err.message : "Failed to trigger IFTTT");
@@ -198,10 +207,13 @@ export default function SocialPage() {
 
         {/* Error display */}
         {(error || sendError) && (
-          <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-sm mb-4">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error || sendError}
-            <button onClick={() => { setError(""); setSendError(""); }} className="ml-auto text-red-400 hover:text-red-600">
+          <div className="flex items-start gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 text-xs mb-4">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <pre className="whitespace-pre-wrap font-sans flex-1 min-w-0">{error || sendError}</pre>
+            <button
+              onClick={() => { setError(""); setSendError(""); }}
+              className="text-red-400 hover:text-red-600 shrink-0"
+            >
               &times;
             </button>
           </div>
