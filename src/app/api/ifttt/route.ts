@@ -48,14 +48,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Vercel Blob needs BLOB_READ_WRITE_TOKEN. On Vercel this is injected
-  // automatically once you've enabled the Blob integration on the project;
-  // locally you'd put it in .env.local.
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  // Find a Blob token in the environment. Vercel Blob usually injects
+  // BLOB_READ_WRITE_TOKEN by default, but if your Blob store has a custom
+  // prefix (e.g. "media") it'll show up as MEDIA_BLOB_READ_WRITE_TOKEN —
+  // so we scan all env vars matching the pattern.
+  const blobTokenKey = Object.keys(process.env).find(
+    (k) => /BLOB_READ_WRITE_TOKEN$/.test(k) && process.env[k]
+  );
+  const blobToken = blobTokenKey ? process.env[blobTokenKey] : undefined;
+
+  if (!blobToken) {
+    // Help the user diagnose which step they missed by surfacing the env
+    // vars Vercel injects so they can see whether the Blob store is
+    // connected to THIS project (vs. just created at the team level).
+    const blobLikeKeys = Object.keys(process.env).filter((k) => /BLOB|VERCEL/i.test(k));
     return NextResponse.json(
       {
         error:
-          "Vercel Blob not enabled. In the Vercel dashboard: Project → Storage → Create Database → Blob. Then redeploy.",
+          "Vercel Blob token not found on this deployment. Three things to check (in order):\n" +
+          "1) Vercel dashboard → your dhennews project → Storage → make sure the Blob store is CONNECTED to this project (not just created at the team level).\n" +
+          "2) After connecting, REDEPLOY (env vars only take effect on a new deployment).\n" +
+          "3) If your store uses a custom prefix, the env var won't be named BLOB_READ_WRITE_TOKEN — it'll be <PREFIX>_BLOB_READ_WRITE_TOKEN. This route now auto-detects any *BLOB_READ_WRITE_TOKEN env var.",
+        diagnostic: {
+          envKeysSeen: blobLikeKeys,
+          hint: blobLikeKeys.length === 0
+            ? "No Blob/Vercel env vars are visible — the store isn't connected to this project yet."
+            : "Vercel env vars are visible, but none match *BLOB_READ_WRITE_TOKEN. The store may not have the read-write token enabled.",
+        },
       },
       { status: 400 }
     );
@@ -68,6 +87,7 @@ export async function POST(req: NextRequest) {
     const blob = await put(filename, imageBuffer, {
       access: "public",
       contentType: "image/png",
+      token: blobToken, // explicit token so custom-prefix stores work too
     });
 
     // 2. Trigger IFTTT Maker Webhook with the public URL + caption + link
