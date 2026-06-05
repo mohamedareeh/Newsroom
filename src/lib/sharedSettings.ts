@@ -44,6 +44,10 @@ export interface SharedSettings {
     /** Event name configured in your IFTTT applets (e.g. "news_share"). */
     defaultEvent: string;
   };
+  /** Optional override for Vercel Blob's read/write token — used when the
+   *  BLOB_READ_WRITE_TOKEN env var can't be set on the deployment. Stored
+   *  in Vercel KV like the other secrets. */
+  blobReadWriteToken?: string;
   // Source management (admin-only)
   customSources: SharedNewsSource[];
   removedDefaultSourceIds: string[];

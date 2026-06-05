@@ -61,6 +61,7 @@ export default function SettingsPage() {
     telegram: { botToken: "", chatId: "" },
     facebook: { pageAccessToken: "", pageId: "" },
     ifttt: { webhookKey: "", defaultEvent: "news_share" },
+    blobReadWriteToken: "",
     customSources: [] as NewsSource[],
     removedDefaultSourceIds: [] as string[],
     enabledSourceIds: [] as string[],
@@ -1119,6 +1120,23 @@ export default function SettingsPage() {
                   />
                   <p className="text-[10px] text-gray-400">
                     Use the same event name in every IFTTT applet you want this button to trigger.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t border-gray-200/60">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Blob Token (manual override)
+                  </label>
+                  <IftttKeyInput
+                    value={shared.blobReadWriteToken || ""}
+                    onChange={(v) => updateShared({ blobReadWriteToken: v })}
+                    className={inputCls}
+                  />
+                  <p className="text-[10px] text-gray-400">
+                    Optional fallback. Paste your{" "}
+                    <code className="bg-[#f0ede8] px-1 rounded">vercel_blob_rw_…</code> token here
+                    if Vercel isn't injecting <code className="bg-[#f0ede8] px-1 rounded">BLOB_READ_WRITE_TOKEN</code>
+                    {" "}as an env var. The env var takes precedence when present.
                   </p>
                 </div>
               </div>

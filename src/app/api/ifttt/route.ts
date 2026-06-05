@@ -48,32 +48,37 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Find a Blob token in the environment. Vercel Blob usually injects
-  // BLOB_READ_WRITE_TOKEN by default, but if your Blob store has a custom
-  // prefix (e.g. "media") it'll show up as MEDIA_BLOB_READ_WRITE_TOKEN —
-  // so we scan all env vars matching the pattern.
+  // Find a Blob token. Preference order:
+  //   1. shared.blobReadWriteToken — Settings UI override (KV-stored).
+  //   2. process.env.BLOB_READ_WRITE_TOKEN (or any *BLOB_READ_WRITE_TOKEN).
+  // The Settings override lets the admin paste the token directly when the
+  // Vercel project's env var injection is misconfigured.
   const blobTokenKey = Object.keys(process.env).find(
     (k) => /BLOB_READ_WRITE_TOKEN$/.test(k) && process.env[k]
   );
-  const blobToken = blobTokenKey ? process.env[blobTokenKey] : undefined;
+  const blobToken =
+    (shared.blobReadWriteToken && shared.blobReadWriteToken.trim()) ||
+    (blobTokenKey ? process.env[blobTokenKey] : undefined);
+  const tokenSource = shared.blobReadWriteToken?.trim()
+    ? "settings"
+    : blobTokenKey
+    ? `env (${blobTokenKey})`
+    : "none";
 
   if (!blobToken) {
-    // Help the user diagnose which step they missed by surfacing the env
-    // vars Vercel injects so they can see whether the Blob store is
-    // connected to THIS project (vs. just created at the team level).
     const blobLikeKeys = Object.keys(process.env).filter((k) => /BLOB|VERCEL/i.test(k));
     return NextResponse.json(
       {
         error:
-          "Vercel Blob token not found on this deployment. Three things to check (in order):\n" +
-          "1) Vercel dashboard → your dhennews project → Storage → make sure the Blob store is CONNECTED to this project (not just created at the team level).\n" +
-          "2) After connecting, REDEPLOY (env vars only take effect on a new deployment).\n" +
-          "3) If your store uses a custom prefix, the env var won't be named BLOB_READ_WRITE_TOKEN — it'll be <PREFIX>_BLOB_READ_WRITE_TOKEN. This route now auto-detects any *BLOB_READ_WRITE_TOKEN env var.",
+          "No Vercel Blob token found. Easiest fix: paste your token into Settings → IFTTT Webhooks → 'Blob Token (manual override)' field. " +
+          "Or set the BLOB_READ_WRITE_TOKEN env var on the project + redeploy.",
         diagnostic: {
           envKeysSeen: blobLikeKeys,
-          hint: blobLikeKeys.length === 0
-            ? "No Blob/Vercel env vars are visible — the store isn't connected to this project yet."
-            : "Vercel env vars are visible, but none match *BLOB_READ_WRITE_TOKEN. The store may not have the read-write token enabled.",
+          tokenSource,
+          hint:
+            blobLikeKeys.length === 0
+              ? "No Blob/Vercel env vars are visible — the Blob store isn't connected to this project yet."
+              : "Vercel env vars are visible, but none match *BLOB_READ_WRITE_TOKEN. Either connect/reconnect the Blob store, or paste the token in Settings.",
         },
       },
       { status: 400 }

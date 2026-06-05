@@ -80,6 +80,8 @@ export async function POST(req: NextRequest) {
         body.ifttt !== undefined
           ? { ...(current.ifttt || { webhookKey: "", defaultEvent: "news_share" }), ...body.ifttt }
           : (current.ifttt || { webhookKey: "", defaultEvent: "news_share" }),
+      blobReadWriteToken:
+        body.blobReadWriteToken !== undefined ? body.blobReadWriteToken : current.blobReadWriteToken,
       customSources: body.customSources !== undefined ? body.customSources : current.customSources,
       removedDefaultSourceIds: body.removedDefaultSourceIds !== undefined ? body.removedDefaultSourceIds : current.removedDefaultSourceIds,
       enabledSourceIds: body.enabledSourceIds !== undefined ? body.enabledSourceIds : current.enabledSourceIds,
