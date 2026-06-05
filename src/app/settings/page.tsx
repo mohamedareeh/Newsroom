@@ -62,6 +62,11 @@ export default function SettingsPage() {
     facebook: { pageAccessToken: "", pageId: "" },
     ifttt: { webhookKey: "", defaultEvent: "news_share" },
     blobReadWriteToken: "",
+    autoPostFb: {
+      enabled: false,
+      rssUrl: "https://dhen.mv/feed",
+      captionTemplate: "{title}\n\n{link}",
+    },
     customSources: [] as NewsSource[],
     removedDefaultSourceIds: [] as string[],
     enabledSourceIds: [] as string[],
@@ -1050,6 +1055,119 @@ export default function SettingsPage() {
               </div>
             </div>
           </GlassCard>
+          )}
+
+          {/* ════════════════════════════════════════════════════ */}
+          {/* Auto-post RSS → Facebook (Admin Only)               */}
+          {/* ════════════════════════════════════════════════════ */}
+          {userIsAdmin && (
+            <GlassCard className="p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Send className="w-4 h-4 text-[#1a1a1a]" />
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                  Auto-Post RSS → Facebook
+                </h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">
+                When enabled, a background cron will watch the RSS feed and post every new item to
+                the Facebook Page configured above. Trigger it from an external scheduler (e.g.
+                cron-job.org) hitting:
+                <br />
+                <code className="bg-[#f0ede8] px-1 rounded break-all text-[10px]">
+                  https://dhennews.vercel.app/api/cron/auto-post-fb?secret=&lt;CRON_SECRET&gt;
+                </code>
+                <br />
+                <span className="text-[10px]">
+                  Set <code className="bg-[#f0ede8] px-1 rounded">CRON_SECRET</code> as an env var on
+                  Vercel (any random string ≥ 32 chars). The first cron tick after enabling marks
+                  current items as "seen" and posts nothing — subsequent ticks post only genuinely
+                  new items.
+                </span>
+              </p>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!shared.autoPostFb?.enabled}
+                    onChange={(e) =>
+                      updateShared({
+                        autoPostFb: {
+                          ...(shared.autoPostFb || {
+                            rssUrl: "https://dhen.mv/feed",
+                            captionTemplate: "{title}\n\n{link}",
+                          }),
+                          enabled: e.target.checked,
+                        },
+                      })
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Enable auto-post (cron ticks will publish new RSS items)
+                  </span>
+                </label>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    RSS Feed URL
+                  </label>
+                  <input
+                    type="url"
+                    value={shared.autoPostFb?.rssUrl || ""}
+                    onChange={(e) =>
+                      updateShared({
+                        autoPostFb: {
+                          ...(shared.autoPostFb || {
+                            enabled: false,
+                            captionTemplate: "{title}\n\n{link}",
+                          }),
+                          rssUrl: e.target.value.trim(),
+                        },
+                      })
+                    }
+                    placeholder="https://dhen.mv/feed"
+                    className={inputCls}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Caption Template
+                  </label>
+                  <textarea
+                    value={shared.autoPostFb?.captionTemplate || ""}
+                    onChange={(e) =>
+                      updateShared({
+                        autoPostFb: {
+                          ...(shared.autoPostFb || {
+                            enabled: false,
+                            rssUrl: "https://dhen.mv/feed",
+                          }),
+                          captionTemplate: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder={"{title}\n\n{link}"}
+                    rows={3}
+                    className={inputCls}
+                    spellCheck={false}
+                  />
+                  <p className="text-[10px] text-gray-400">
+                    Variables: <code className="bg-[#f0ede8] px-1 rounded">{"{title}"}</code>{" "}
+                    <code className="bg-[#f0ede8] px-1 rounded">{"{link}"}</code>
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200/60">
+                  <p className="text-[11px] text-gray-500 mb-2">
+                    💡 Tip — once enabled, set up cron-job.org with a 15-minute schedule pointing at
+                    the URL above. Check /report or your FB Page's posts to monitor.
+                  </p>
+                </div>
+              </div>
+            </GlassCard>
           )}
 
           {/* ════════════════════════════════════════════════════ */}

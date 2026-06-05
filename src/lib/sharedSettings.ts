@@ -48,6 +48,15 @@ export interface SharedSettings {
    *  BLOB_READ_WRITE_TOKEN env var can't be set on the deployment. Stored
    *  in Vercel KV like the other secrets. */
   blobReadWriteToken?: string;
+  /** Background auto-poster: watches an RSS feed and posts new items to the
+   *  configured Facebook Page automatically. Triggered by an external cron
+   *  service (cron-job.org, etc.) hitting /api/cron/auto-post-fb?secret=… */
+  autoPostFb?: {
+    enabled: boolean;
+    rssUrl: string;
+    /** Caption template — supports {title}, {link}. */
+    captionTemplate: string;
+  };
   // Source management (admin-only)
   customSources: SharedNewsSource[];
   removedDefaultSourceIds: string[];
@@ -65,6 +74,11 @@ export const DEFAULT_SHARED: SharedSettings = {
   telegram: { botToken: "", chatId: "" },
   facebook: { pageAccessToken: "", pageId: "" },
   ifttt: { webhookKey: "", defaultEvent: "news_share" },
+  autoPostFb: {
+    enabled: false,
+    rssUrl: "https://dhen.mv/feed",
+    captionTemplate: "{title}\n\n{link}",
+  },
   customSources: [],
   removedDefaultSourceIds: [],
   enabledSourceIds: [], // empty = all enabled by default

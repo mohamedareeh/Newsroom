@@ -82,6 +82,17 @@ export async function POST(req: NextRequest) {
           : (current.ifttt || { webhookKey: "", defaultEvent: "news_share" }),
       blobReadWriteToken:
         body.blobReadWriteToken !== undefined ? body.blobReadWriteToken : current.blobReadWriteToken,
+      autoPostFb:
+        body.autoPostFb !== undefined
+          ? {
+              ...(current.autoPostFb || {
+                enabled: false,
+                rssUrl: "https://dhen.mv/feed",
+                captionTemplate: "{title}\n\n{link}",
+              }),
+              ...body.autoPostFb,
+            }
+          : current.autoPostFb,
       customSources: body.customSources !== undefined ? body.customSources : current.customSources,
       removedDefaultSourceIds: body.removedDefaultSourceIds !== undefined ? body.removedDefaultSourceIds : current.removedDefaultSourceIds,
       enabledSourceIds: body.enabledSourceIds !== undefined ? body.enabledSourceIds : current.enabledSourceIds,
