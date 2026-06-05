@@ -165,10 +165,21 @@ async function handle(req: NextRequest) {
   }
 
   const seenSet = new Set(seen);
-  const newItems = items.filter((i) => !seenSet.has(i.link));
+  let newItems = items.filter((i) => !seenSet.has(i.link));
   if (newItems.length === 0) {
     return NextResponse.json({ posted: 0, scanned: items.length, message: "No new items." });
   }
+
+  // Enforce per-tick cap (default 2). Pick the OLDEST unposted items so a backlog
+  // drains chronologically — extras roll over to the next tick.
+  const maxPerTick = Math.max(1, Math.min(20, cfg.maxPerTick ?? 2));
+  const pending = newItems.length;
+  if (newItems.length > maxPerTick) {
+    // RSS feeds are typically newest-first; reverse so we pick the oldest tail.
+    const ordered = newItems.slice().reverse();
+    newItems = ordered.slice(0, maxPerTick).reverse();
+  }
+  const deferred = Math.max(0, pending - newItems.length);
 
   // ── 5. Post each new item ──
   const results: Array<{
@@ -236,6 +247,8 @@ async function handle(req: NextRequest) {
   return NextResponse.json({
     posted: postedCount,
     failed: results.length - postedCount,
+    deferred,
+    capPerTick: maxPerTick,
     scanned: items.length,
     results,
   });

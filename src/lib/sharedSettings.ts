@@ -56,6 +56,8 @@ export interface SharedSettings {
     rssUrl: string;
     /** Caption template — supports {title}, {link}. */
     captionTemplate: string;
+    /** Hard cap on posts per cron invocation. Extra items wait for the next tick. */
+    maxPerTick?: number;
   };
   // Source management (admin-only)
   customSources: SharedNewsSource[];
@@ -78,6 +80,7 @@ export const DEFAULT_SHARED: SharedSettings = {
     enabled: false,
     rssUrl: "https://dhen.mv/feed",
     captionTemplate: "{title}\n\n{link}",
+    maxPerTick: 2,
   },
   customSources: [],
   removedDefaultSourceIds: [],

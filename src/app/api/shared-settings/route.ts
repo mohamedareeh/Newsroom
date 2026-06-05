@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
                 enabled: false,
                 rssUrl: "https://dhen.mv/feed",
                 captionTemplate: "{title}\n\n{link}",
+                maxPerTick: 2,
               }),
               ...body.autoPostFb,
             }

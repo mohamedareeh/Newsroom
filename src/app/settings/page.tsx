@@ -66,6 +66,7 @@ export default function SettingsPage() {
       enabled: false,
       rssUrl: "https://dhen.mv/feed",
       captionTemplate: "{title}\n\n{link}",
+      maxPerTick: 2,
     },
     customSources: [] as NewsSource[],
     removedDefaultSourceIds: [] as string[],
@@ -1130,6 +1131,36 @@ export default function SettingsPage() {
                     autoComplete="off"
                     spellCheck={false}
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Max posts per cron tick
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={shared.autoPostFb?.maxPerTick ?? 2}
+                    onChange={(e) =>
+                      updateShared({
+                        autoPostFb: {
+                          ...(shared.autoPostFb || {
+                            enabled: false,
+                            rssUrl: "https://dhen.mv/feed",
+                            captionTemplate: "{title}\n\n{link}",
+                          }),
+                          maxPerTick: Math.max(1, Math.min(20, parseInt(e.target.value || "2", 10) || 2)),
+                        },
+                      })
+                    }
+                    className={inputCls}
+                  />
+                  <p className="text-[10px] text-gray-400">
+                    Hard cap per cron invocation. Extras roll over to the next tick (oldest-first).
+                    With a 15-minute cron and limit = 2, the page posts at most 2 items every 15
+                    minutes (= 8 per hour).
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
