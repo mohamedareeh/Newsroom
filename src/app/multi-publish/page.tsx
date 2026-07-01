@@ -29,6 +29,9 @@ import {
   Filter,
   RotateCcw,
   Copy,
+  ClipboardList,
+  Link2,
+  Check,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
@@ -108,6 +111,8 @@ export default function MultiPublishPage() {
   const [items, setItems] = useState<ItemState[]>([]);
   const [pipelineInfo, setPipelineInfo] = useState<{ dvSite: string | null; enSite: string | null } | null>(null);
   const [pipelineWarnings, setPipelineWarnings] = useState<string[]>([]);
+  const [showSummary, setShowSummary] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const urls = parseUrls(input);
@@ -131,6 +136,47 @@ export default function MultiPublishPage() {
       return true;
     });
   }, [analyses, search, activeTopics]);
+
+  // A flat list of everything that was actually published — one entry per
+  // language per article — for the "Posted summary" panel and clipboard export.
+  const summaryEntries = useMemo(() => {
+    const out: { pub: string; site: string; title: string; url: string; rtl: boolean }[] = [];
+    for (const it of items) {
+      if (it.dv && !it.dv.error) {
+        const url = it.dv.postUrl || it.dv.editUrl;
+        if (url) out.push({ pub: "Dhen", site: it.dv.site, title: it.dv.title || it.title, url, rtl: true });
+      }
+      if (it.en && !it.en.error) {
+        const url = it.en.postUrl || it.en.editUrl;
+        if (url) out.push({ pub: "Maldives Insight", site: it.en.site, title: it.en.title || it.title, url, rtl: false });
+      }
+    }
+    return out;
+  }, [items]);
+
+  // Plain-text version, grouped by publication, for sharing.
+  const summaryText = useMemo(() => {
+    if (summaryEntries.length === 0) return "";
+    const groups = new Map<string, { title: string; url: string }[]>();
+    for (const e of summaryEntries) {
+      if (!groups.has(e.pub)) groups.set(e.pub, []);
+      groups.get(e.pub)!.push({ title: e.title, url: e.url });
+    }
+    return Array.from(groups.entries())
+      .map(([pub, rows]) =>
+        `${pub}\n${rows.map((r) => `• ${r.title}\n  ${r.url}`).join("\n")}`
+      )
+      .join("\n\n");
+  }, [summaryEntries]);
+
+  const copySummary = useCallback(async () => {
+    if (!summaryText) return;
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 1500);
+    } catch {/* ignore */}
+  }, [summaryText]);
 
   const analyze = useCallback(async () => {
     if (analyzing) return;
@@ -572,6 +618,17 @@ export default function MultiPublishPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
+                      {summaryEntries.length > 0 && (
+                        <button
+                          onClick={() => setShowSummary((s) => !s)}
+                          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium ${
+                            showSummary ? "glass-strong text-primary" : "glass-btn"
+                          }`}
+                        >
+                          <ClipboardList className="w-3.5 h-3.5" />
+                          Summary ({summaryEntries.length})
+                        </button>
+                      )}
                       {counts.failed > 0 && !running && (
                         <button
                           onClick={retryFailed}
@@ -608,6 +665,52 @@ export default function MultiPublishPage() {
                 </GlassCard>
               );
             })()}
+
+            {/* Posted summary — title + link for everything published */}
+            {showSummary && summaryEntries.length > 0 && (
+              <GlassCard className="p-4 sm:p-5 mb-3">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-1.5">
+                    <ClipboardList className="w-3.5 h-3.5" />
+                    Posted summary · {summaryEntries.length}
+                  </p>
+                  <button
+                    onClick={copySummary}
+                    className="glass-btn flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium"
+                  >
+                    {copiedSummary ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copiedSummary ? "Copied" : "Copy all"}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {summaryEntries.map((e, i) => (
+                    <div key={`${e.url}-${i}`} className="glass-soft rounded-xl p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
+                          {e.pub}
+                        </span>
+                        <span className="text-[10px] text-faint truncate">{e.site}</span>
+                      </div>
+                      <p
+                        className="text-sm text-primary leading-snug"
+                        dir={e.rtl ? "rtl" : undefined}
+                      >
+                        {e.title || "(no title)"}
+                      </p>
+                      <a
+                        href={e.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted hover:text-primary break-all"
+                      >
+                        <Link2 className="w-3 h-3 shrink-0" />
+                        {e.url}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            )}
 
             {/* Target sites + config warnings */}
             {(pipelineInfo || pipelineWarnings.length > 0) && (

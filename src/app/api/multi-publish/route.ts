@@ -20,6 +20,10 @@ interface MultiPublishRequest {
   urls: string[];
 }
 
+// Category every pipeline post is filed under, on BOTH the Dhivehi (dhen.mv)
+// and English (maldivesinsight.com) sites. Created on the site if missing.
+const PIPELINE_CATEGORY = "World News";
+
 interface ScrapedArticle {
   url: string;
   title: string;
@@ -304,9 +308,9 @@ async function publishDraft(
   const siteUrl = wp.siteUrl.replace(/\/+$/, "");
   try {
     const tagIds = payload.tags?.length ? await resolveTagIds(siteUrl, wp, payload.tags) : [];
-    // Default to "World News" if no category was explicitly configured.
-    const categoryName = (wp.defaultCategoryName || "").trim() || "World News";
-    const categoryId = await resolveCategoryId(siteUrl, wp, categoryName);
+    // Every pipeline post lands in "World News" on both sites — created on the
+    // site if it doesn't exist yet.
+    const categoryId = await resolveCategoryId(siteUrl, wp, PIPELINE_CATEGORY);
     const meta: Record<string, string> = {};
     if (payload.customFields) {
       for (const [k, v] of Object.entries(payload.customFields)) if (v) meta[k] = v;
