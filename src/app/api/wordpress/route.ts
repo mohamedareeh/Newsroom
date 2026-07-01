@@ -1,11 +1,11 @@
 // ─── WordPress REST API Proxy ─────────────────────────────
 // POST /api/wordpress
 // Actions: "categories" — fetch WP categories
-//          "publish"    — create a draft post
+//          "publish"    — create a post (draft or live, per body.status)
 
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth";
-import { getSharedSettings } from "@/lib/sharedSettings";
+import { getSharedSettings, resolveWP } from "@/lib/sharedSettings";
 
 interface WPRequest {
   action: "categories" | "publish" | "test";
@@ -16,6 +16,8 @@ interface WPRequest {
   categoryId?: number;
   customFields?: Record<string, string>;
   tags?: string[]; // Tag names to create/assign
+  /** Post status. "draft" (default) or "publish" to go live immediately. */
+  status?: "draft" | "publish";
 }
 
 interface WPCreds {
@@ -78,12 +80,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Read WordPress credentials from shared settings (KV) — pick the requested slot
+  // Read WordPress credentials from shared settings (KV) — pick the requested slot.
+  // dhivehi/english go through resolveWP so the Dhivehi (Dhen) slot falls back to
+  // the legacy single config when a dedicated one isn't set — same rules the
+  // multi-publish pipeline uses. "main" keeps the legacy direct config.
   const shared = await getSharedSettings();
   const slot = body.slot || "main";
   const wordpress =
-    slot === "dhivehi" ? shared.wordpressDhivehi :
-    slot === "english" ? shared.wordpressEnglish :
+    slot === "dhivehi" ? resolveWP(shared, "dv") :
+    slot === "english" ? resolveWP(shared, "en") :
     shared.wordpress;
   const { action } = body;
   if (!wordpress?.siteUrl || !wordpress?.username || !wordpress?.appPassword) {
@@ -167,7 +172,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           title: body.title,
           content: body.content,
-          status: "draft",
+          status: body.status === "publish" ? "publish" : "draft",
           categories: body.categoryId ? [body.categoryId] : [],
           ...(tagIds.length > 0 ? { tags: tagIds } : {}),
           ...(hasMeta ? { meta } : {}),
@@ -213,6 +218,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         postId: post.id,
+        status: post.status,
         editUrl: post.link ? `${siteUrl}/wp-admin/post.php?post=${post.id}&action=edit` : undefined,
         link: post.link,
       });
