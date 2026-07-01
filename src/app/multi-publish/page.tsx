@@ -6,7 +6,7 @@
 //      tones in the source). Display labels so the editor can scan.
 //   2. Editor checks N articles → Run pipeline: translate to
 //      Dhivehi (→ dhen.mv) AND paraphrase in English (→
-//      maldivesinsight.com), publish both as drafts.
+//      maldivesinsight.com), publishing live or as drafts.
 
 import { useState, useCallback, useMemo, useRef } from "react";
 import {
@@ -113,6 +113,10 @@ export default function MultiPublishPage() {
   const [pipelineWarnings, setPipelineWarnings] = useState<string[]>([]);
   const [showSummary, setShowSummary] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  // Publish live vs save as drafts. Read via ref inside runUrls (stable deps).
+  const [publishLive, setPublishLive] = useState(true);
+  const publishLiveRef = useRef(publishLive);
+  publishLiveRef.current = publishLive;
   const abortRef = useRef<AbortController | null>(null);
 
   const urls = parseUrls(input);
@@ -264,7 +268,10 @@ export default function MultiPublishPage() {
         const res = await fetch("/api/multi-publish", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ urls: urlsToRun }),
+          body: JSON.stringify({
+            urls: urlsToRun,
+            status: publishLiveRef.current ? "publish" : "draft",
+          }),
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -421,7 +428,7 @@ export default function MultiPublishPage() {
           </h2>
           <p className="text-sm text-muted mt-1">
             Step 1 — paste source URLs. Step 2 — pick which to publish. Step 3 — pipeline translates
-            to Dhivehi (dhen.mv) and paraphrases in English (maldivesinsight.com) as drafts.
+            to Dhivehi (dhen.mv) and paraphrases in English (maldivesinsight.com), publishing live or as drafts.
           </p>
         </div>
 
@@ -494,9 +501,32 @@ export default function MultiPublishPage() {
               <p className="text-xs font-semibold text-muted uppercase tracking-wider">
                 Step 2 · Pick what to publish
               </p>
-              <p className="text-[11px] text-muted">
-                {selected.size} selected
-              </p>
+              <div className="flex items-center gap-3">
+                {/* Publish mode: live or drafts */}
+                <div className="flex items-center gap-1 glass-soft rounded-lg p-0.5" role="group" aria-label="Publish mode">
+                  <button
+                    onClick={() => setPublishLive(true)}
+                    disabled={running}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                      publishLive ? "glass-strong text-primary" : "text-muted hover:text-primary"
+                    }`}
+                  >
+                    Publish live
+                  </button>
+                  <button
+                    onClick={() => setPublishLive(false)}
+                    disabled={running}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                      !publishLive ? "glass-strong text-primary" : "text-muted hover:text-primary"
+                    }`}
+                  >
+                    Drafts
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted">
+                  {selected.size} selected
+                </p>
+              </div>
             </div>
 
             {/* Search + topic filters */}
@@ -524,7 +554,7 @@ export default function MultiPublishPage() {
                 className="glass-btn flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium shrink-0"
               >
                 {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Run ({selected.size})
+                {publishLive ? "Publish live" : "Save drafts"} ({selected.size})
               </button>
             </div>
 
@@ -1025,7 +1055,7 @@ function Outcome({
                 className="glass-btn flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium"
               >
                 <Send className="w-3 h-3" />
-                Edit draft
+                Edit in WP
               </a>
             )}
             {outcome.postUrl && (

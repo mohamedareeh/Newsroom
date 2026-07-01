@@ -18,6 +18,8 @@ import { appendPublication, PublicationRecord } from "@/lib/publicationLog";
 interface MultiPublishRequest {
   /** Exact list of URLs to translate and publish. Caller does the curation. */
   urls: string[];
+  /** Post status on both sites. "publish" goes live, "draft" saves a draft. */
+  status?: "draft" | "publish";
 }
 
 // Category every pipeline post is filed under, on BOTH the Dhivehi (dhen.mv)
@@ -301,9 +303,10 @@ async function resolveCategoryId(
   return undefined;
 }
 
-async function publishDraft(
+async function publishPost(
   wp: WordPressCreds,
-  payload: { title: string; content: string; customFields?: Record<string, string>; tags?: string[] }
+  payload: { title: string; content: string; customFields?: Record<string, string>; tags?: string[] },
+  status: "draft" | "publish"
 ): Promise<{ postId?: number; editUrl?: string; postUrl?: string; error?: string }> {
   const siteUrl = wp.siteUrl.replace(/\/+$/, "");
   try {
@@ -321,7 +324,7 @@ async function publishDraft(
       body: JSON.stringify({
         title: payload.title,
         content: payload.content,
-        status: "draft",
+        status,
         ...(categoryId ? { categories: [categoryId] } : {}),
         ...(tagIds.length ? { tags: tagIds } : {}),
         ...(Object.keys(meta).length ? { meta } : {}),
@@ -359,6 +362,7 @@ export async function POST(req: NextRequest) {
   const urls = Array.isArray(body.urls)
     ? Array.from(new Set(body.urls.map((u) => String(u).trim()).filter(Boolean))).slice(0, 10)
     : [];
+  const status: "draft" | "publish" = body.status === "publish" ? "publish" : "draft";
 
   if (urls.length === 0) {
     return new Response(JSON.stringify({ error: "Provide at least one URL" }), { status: 400 });
@@ -405,6 +409,7 @@ export async function POST(req: NextRequest) {
       try {
         send(controller, "started", {
           urlsCount: urls.length,
+          status,
           dvSite: wpDV ? wpDV.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") : null,
           enSite: wpEN ? wpEN.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") : null,
         });
@@ -476,7 +481,7 @@ export async function POST(req: NextRequest) {
               send(controller, "step", { index: i, step: "translating-dv", url: article.url });
               const dv = await generateForLanguage(model, article, "dv");
               send(controller, "step", { index: i, step: "publishing-dv", url: article.url });
-              const pub = await publishDraft(wpDV, {
+              const pub = await publishPost(wpDV, {
                 title: dv.title,
                 content: dv.content,
                 customFields: {
@@ -484,7 +489,7 @@ export async function POST(req: NextRequest) {
                   ...(dv.social ? { article_social_text: dv.social } : {}),
                 },
                 tags: dv.tags,
-              });
+              }, status);
               record.dv = {
                 title: dv.title,
                 site: wpDV.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
@@ -508,12 +513,12 @@ export async function POST(req: NextRequest) {
               send(controller, "step", { index: i, step: "paraphrasing-en", url: article.url });
               const en = await generateForLanguage(model, article, "en");
               send(controller, "step", { index: i, step: "publishing-en", url: article.url });
-              const pub = await publishDraft(wpEN, {
+              const pub = await publishPost(wpEN, {
                 title: en.title,
                 content: en.content,
                 customFields: en.social ? { article_social_text: en.social } : undefined,
                 tags: en.tags,
-              });
+              }, status);
               record.en = {
                 title: en.title,
                 site: wpEN.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
