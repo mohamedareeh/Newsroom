@@ -32,10 +32,12 @@ import {
   ClipboardList,
   Link2,
   Check,
+  Newspaper,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
 import SiteReportCard from "@/components/SiteReportCard";
+import PipelineNewsPanel from "@/components/PipelineNewsPanel";
 
 interface SubjectTone {
   subject: string;
@@ -124,6 +126,7 @@ export default function MultiPublishPage() {
   backdateDaysRef.current = backdateDays;
   // Bumped after each run so the site report refreshes.
   const [reportTick, setReportTick] = useState(0);
+  const [showPipelineNews, setShowPipelineNews] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const urls = parseUrls(input);
@@ -431,15 +434,30 @@ export default function MultiPublishPage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight flex items-center gap-2">
-            <Globe className="w-6 h-6" />
-            Multi-Publish Pipeline
-          </h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight flex items-center gap-2">
+              <Globe className="w-6 h-6" />
+              Multi-Publish Pipeline
+            </h2>
+            <button
+              onClick={() => setShowPipelineNews((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium ${
+                showPipelineNews ? "glass-strong text-primary" : "glass-btn"
+              }`}
+            >
+              <Newspaper className="w-3.5 h-3.5" />
+              News through Publish
+            </button>
+          </div>
           <p className="text-sm text-muted mt-1">
             Step 1 — paste source URLs. Step 2 — pick which to publish. Step 3 — pipeline translates
             to Dhivehi (dhen.mv) and paraphrases in English (maldivesinsight.com), publishing live or as drafts.
           </p>
         </div>
+
+        {showPipelineNews && (
+          <PipelineNewsPanel refreshKey={reportTick} onClose={() => setShowPipelineNews(false)} />
+        )}
 
         <SiteReportCard refreshKey={reportTick} />
 
