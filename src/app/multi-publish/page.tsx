@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import BottomNav from "@/components/BottomNav";
+import SiteReportCard from "@/components/SiteReportCard";
 
 interface SubjectTone {
   subject: string;
@@ -117,6 +118,12 @@ export default function MultiPublishPage() {
   const [publishLive, setPublishLive] = useState(true);
   const publishLiveRef = useRef(publishLive);
   publishLiveRef.current = publishLive;
+  // Backdate: 0 = now, 1 = yesterday, 2 = two days ago.
+  const [backdateDays, setBackdateDays] = useState(0);
+  const backdateDaysRef = useRef(backdateDays);
+  backdateDaysRef.current = backdateDays;
+  // Bumped after each run so the site report refreshes.
+  const [reportTick, setReportTick] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
   const urls = parseUrls(input);
@@ -271,6 +278,7 @@ export default function MultiPublishPage() {
           body: JSON.stringify({
             urls: urlsToRun,
             status: publishLiveRef.current ? "publish" : "draft",
+            backdateDays: backdateDaysRef.current,
           }),
           signal: controller.signal,
         });
@@ -363,6 +371,7 @@ export default function MultiPublishPage() {
       } finally {
         setRunning(false);
         abortRef.current = null;
+        setReportTick((t) => t + 1);
       }
     },
     []
@@ -431,6 +440,8 @@ export default function MultiPublishPage() {
             to Dhivehi (dhen.mv) and paraphrases in English (maldivesinsight.com), publishing live or as drafts.
           </p>
         </div>
+
+        <SiteReportCard refreshKey={reportTick} />
 
         {/* Step 1: Input */}
         <GlassCard className="p-5 sm:p-6 mb-4">
@@ -523,6 +534,26 @@ export default function MultiPublishPage() {
                     Drafts
                   </button>
                 </div>
+                {/* Post date: now or backdated */}
+                <div className="flex items-center gap-1 glass-soft rounded-lg p-0.5" role="group" aria-label="Post date">
+                  {[
+                    { d: 0, label: "Today" },
+                    { d: 1, label: "Yesterday" },
+                    { d: 2, label: "2 days ago" },
+                  ].map((o) => (
+                    <button
+                      key={o.d}
+                      onClick={() => setBackdateDays(o.d)}
+                      disabled={running}
+                      title={o.d === 0 ? "Date posts now" : `Date posts ${o.d} day${o.d === 1 ? "" : "s"} back (same time of day)`}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                        backdateDays === o.d ? "glass-strong text-primary" : "text-muted hover:text-primary"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
                 <p className="text-[11px] text-muted">
                   {selected.size} selected
                 </p>
@@ -554,7 +585,8 @@ export default function MultiPublishPage() {
                 className="glass-btn flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium shrink-0"
               >
                 {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {publishLive ? "Publish live" : "Save drafts"} ({selected.size})
+                {publishLive ? "Publish live" : "Save drafts"}
+                {backdateDays > 0 && ` · ${backdateDays === 1 ? "yesterday" : `${backdateDays}d ago`}`} ({selected.size})
               </button>
             </div>
 

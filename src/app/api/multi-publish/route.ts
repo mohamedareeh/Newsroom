@@ -20,6 +20,8 @@ interface MultiPublishRequest {
   urls: string[];
   /** Post status on both sites. "publish" goes live, "draft" saves a draft. */
   status?: "draft" | "publish";
+  /** Backdate posts by this many days (0 = now, 1 = yesterday, max 7). */
+  backdateDays?: number;
 }
 
 // Category every pipeline post is filed under, on BOTH the Dhivehi (dhen.mv)
@@ -306,7 +308,9 @@ async function resolveCategoryId(
 async function publishPost(
   wp: WordPressCreds,
   payload: { title: string; content: string; customFields?: Record<string, string>; tags?: string[] },
-  status: "draft" | "publish"
+  status: "draft" | "publish",
+  /** Optional GMT publish date, "YYYY-MM-DDTHH:mm:ss". Used for backdating. */
+  dateGmt?: string
 ): Promise<{ postId?: number; editUrl?: string; postUrl?: string; error?: string }> {
   const siteUrl = wp.siteUrl.replace(/\/+$/, "");
   try {
@@ -325,6 +329,9 @@ async function publishPost(
         title: payload.title,
         content: payload.content,
         status,
+        // A past date_gmt with status "publish" publishes immediately but
+        // shows the backdated date on the site.
+        ...(dateGmt ? { date_gmt: dateGmt } : {}),
         ...(categoryId ? { categories: [categoryId] } : {}),
         ...(tagIds.length ? { tags: tagIds } : {}),
         ...(Object.keys(meta).length ? { meta } : {}),
@@ -363,6 +370,11 @@ export async function POST(req: NextRequest) {
     ? Array.from(new Set(body.urls.map((u) => String(u).trim()).filter(Boolean))).slice(0, 10)
     : [];
   const status: "draft" | "publish" = body.status === "publish" ? "publish" : "draft";
+  const backdateDays = Math.max(0, Math.min(7, Math.floor(Number(body.backdateDays) || 0)));
+  // Same time of day as now, shifted back N days. WP wants GMT without "Z".
+  const dateGmt = backdateDays > 0
+    ? new Date(Date.now() - backdateDays * 86400_000).toISOString().slice(0, 19)
+    : undefined;
 
   if (urls.length === 0) {
     return new Response(JSON.stringify({ error: "Provide at least one URL" }), { status: 400 });
@@ -410,6 +422,7 @@ export async function POST(req: NextRequest) {
         send(controller, "started", {
           urlsCount: urls.length,
           status,
+          backdateDays,
           dvSite: wpDV ? wpDV.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") : null,
           enSite: wpEN ? wpEN.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "") : null,
         });
@@ -473,6 +486,7 @@ export async function POST(req: NextRequest) {
             sourceTitle: article.title,
             sourceDate: article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined,
             publishedAt: Date.now(),
+            ...(dateGmt ? { backdatedTo: dateGmt + "Z" } : {}),
           };
 
           // Dhivehi
@@ -489,7 +503,7 @@ export async function POST(req: NextRequest) {
                   ...(dv.social ? { article_social_text: dv.social } : {}),
                 },
                 tags: dv.tags,
-              }, status);
+              }, status, dateGmt);
               record.dv = {
                 title: dv.title,
                 site: wpDV.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
@@ -518,7 +532,7 @@ export async function POST(req: NextRequest) {
                 content: en.content,
                 customFields: en.social ? { article_social_text: en.social } : undefined,
                 tags: en.tags,
-              }, status);
+              }, status, dateGmt);
               record.en = {
                 title: en.title,
                 site: wpEN.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),

@@ -11,6 +11,7 @@ export interface PublicationRecord {
   sourceTitle?: string;
   sourceDate?: string; // ISO date pulled from source
   publishedAt: number; // epoch ms
+  backdatedTo?: string; // ISO date the WP post was dated, when backdated
   // Per-language outputs
   dv?: {
     title: string;
