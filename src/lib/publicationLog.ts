@@ -20,6 +20,7 @@ export interface PublicationRecord {
     postUrl?: string;
     editUrl?: string;
     error?: string;
+    note?: string;
   };
   en?: {
     title: string;
@@ -28,6 +29,7 @@ export interface PublicationRecord {
     postUrl?: string;
     editUrl?: string;
     error?: string;
+    note?: string;
   };
 }
 

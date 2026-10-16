@@ -67,12 +67,14 @@ interface ItemState {
     | "publishing-en"
     | "done"
     | "error";
-  dv?: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
-  en?: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
+  dv?: Outcome;
+  en?: Outcome;
   startedAt?: number;
   finishedAt?: number;
   attempts: number;
 }
+
+type Outcome = { title: string; site: string; editUrl?: string; postUrl?: string; error?: string; note?: string };
 
 const STEP_LABEL: Record<ItemState["step"], string> = {
   queued: "Queued",
@@ -244,7 +246,11 @@ export default function MultiPublishPage() {
   // upstream item index to the index in our `items` state. This lets us
   // retry just a subset (failed / single item) without losing completed rows.
   const runUrls = useCallback(
-    async (urlsToRun: string[], targetIndexFor: (upstreamIdx: number) => number) => {
+    async (
+      urlsToRun: string[],
+      targetIndexFor: (upstreamIdx: number) => number,
+      only?: Record<string, ("dv" | "en")[]>
+    ) => {
       if (urlsToRun.length === 0) return;
       setRunning(true);
       setError("");
@@ -265,8 +271,9 @@ export default function MultiPublishPage() {
             startedAt,
             finishedAt: undefined,
             attempts: (it.attempts ?? 0) + (i === targetIndexFor(matchIdx) ? 1 : 0),
-            dv: undefined,
-            en: undefined,
+            // Keep the side that already succeeded; only the failed side reruns.
+            dv: it.dv && !it.dv.error ? it.dv : undefined,
+            en: it.en && !it.en.error ? it.en : undefined,
           };
         })
       );
@@ -282,6 +289,7 @@ export default function MultiPublishPage() {
             urls: urlsToRun,
             status: publishLiveRef.current ? "publish" : "draft",
             backdateDays: backdateDaysRef.current,
+            ...(only ? { only } : {}),
           }),
           signal: controller.signal,
         });
@@ -328,19 +336,14 @@ export default function MultiPublishPage() {
               const targetIdx = targetIndexFor(upstreamIdx);
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const rec = payload.record as any;
-              const errored = !!(rec.dv?.error || rec.en?.error);
               setItems((prev) =>
-                prev.map((it, i) =>
-                  i === targetIdx
-                    ? {
-                        ...it,
-                        step: errored ? "error" : "done",
-                        dv: rec.dv,
-                        en: rec.en,
-                        finishedAt: Date.now(),
-                      }
-                    : it
-                )
+                prev.map((it, i) => {
+                  if (i !== targetIdx) return it;
+                  const dv = rec.dv ?? it.dv;
+                  const en = rec.en ?? it.en;
+                  const errored = !!(dv?.error || en?.error);
+                  return { ...it, step: errored ? "error" : "done", dv, en, finishedAt: Date.now() };
+                })
               );
             } else if (payload.type === "error") {
               setError(String(payload.error || "Pipeline error"));
@@ -403,7 +406,7 @@ export default function MultiPublishPage() {
     // Map upstream index (0..failedUrls-1) to its current index in `items`
     const targetIndexFor = (upstreamIdx: number) =>
       items.findIndex((it) => it.url === failedUrls[upstreamIdx]);
-    await runUrls(failedUrls, targetIndexFor);
+    await runUrls(failedUrls, targetIndexFor, onlyFailedSides(failed));
   }, [running, items, runUrls]);
 
   // Retry a single item, in place.
@@ -411,7 +414,8 @@ export default function MultiPublishPage() {
     async (url: string) => {
       if (running) return;
       const targetIndexFor = () => items.findIndex((it) => it.url === url);
-      await runUrls([url], targetIndexFor);
+      const it = items.find((x) => x.url === url);
+      await runUrls([url], targetIndexFor, it ? onlyFailedSides([it]) : undefined);
     },
     [running, items, runUrls]
   );
@@ -1039,6 +1043,9 @@ function RunRow({
               )}
             </div>
           )}
+          {isError && !onRetry && (
+            <p className="text-[11px] text-faint mt-2">Retry appears when the current run finishes.</p>
+          )}
           {isError && onRetry && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
               <button
@@ -1077,7 +1084,7 @@ function Outcome({
 }: {
   label: string;
   icon: React.ReactNode;
-  outcome: { title: string; site: string; editUrl?: string; postUrl?: string; error?: string };
+  outcome: Outcome;
   rtl?: boolean;
 }) {
   return (
@@ -1096,6 +1103,7 @@ function Outcome({
           <p className="text-xs text-primary truncate" dir={rtl ? "rtl" : undefined}>
             {outcome.title || "(no title)"}
           </p>
+          {outcome.note && <p className="text-[11px] text-amber-600 mt-1">{outcome.note}</p>}
           <div className="flex flex-wrap items-center gap-2 mt-2">
             {outcome.editUrl && (
               <a
@@ -1124,6 +1132,18 @@ function Outcome({
       )}
     </div>
   );
+}
+
+/** For each item, the languages that still need doing (failed or never ran). */
+function onlyFailedSides(list: ItemState[]): Record<string, ("dv" | "en")[]> {
+  const out: Record<string, ("dv" | "en")[]> = {};
+  for (const it of list) {
+    const langs: ("dv" | "en")[] = [];
+    if (!it.dv || it.dv.error) langs.push("dv");
+    if (!it.en || it.en.error) langs.push("en");
+    out[it.url] = langs.length ? langs : ["dv", "en"];
+  }
+  return out;
 }
 
 function hostOf(url: string): string {

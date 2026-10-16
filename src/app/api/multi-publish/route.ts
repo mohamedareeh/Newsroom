@@ -22,6 +22,8 @@ interface MultiPublishRequest {
   status?: "draft" | "publish";
   /** Backdate posts by this many days (0 = now, 1 = yesterday, max 7). */
   backdateDays?: number;
+  /** Per-URL languages to run. Used by Retry so only the failed side is redone. */
+  only?: Record<string, ("dv" | "en")[]>;
 }
 
 // Category every pipeline post is filed under, on BOTH the Dhivehi (dhen.mv)
@@ -311,7 +313,7 @@ async function publishPost(
   status: "draft" | "publish",
   /** Optional GMT publish date, "YYYY-MM-DDTHH:mm:ss". Used for backdating. */
   dateGmt?: string
-): Promise<{ postId?: number; editUrl?: string; postUrl?: string; error?: string }> {
+): Promise<{ postId?: number; editUrl?: string; postUrl?: string; error?: string; note?: string }> {
   const siteUrl = wp.siteUrl.replace(/\/+$/, "");
   try {
     const tagIds = payload.tags?.length ? await resolveTagIds(siteUrl, wp, payload.tags) : [];
@@ -322,13 +324,13 @@ async function publishPost(
     if (payload.customFields) {
       for (const [k, v] of Object.entries(payload.customFields)) if (v) meta[k] = v;
     }
-    const res = await fetch(`${siteUrl}/wp-json/wp/v2/posts`, {
+    const send = (st: string) => fetch(`${siteUrl}/wp-json/wp/v2/posts`, {
       method: "POST",
       headers: { Authorization: wpAuthHeader(wp), "Content-Type": "application/json" },
       body: JSON.stringify({
         title: payload.title,
         content: payload.content,
-        status,
+        status: st,
         // A past date_gmt with status "publish" publishes immediately but
         // shows the backdated date on the site.
         ...(dateGmt ? { date_gmt: dateGmt } : {}),
@@ -338,6 +340,18 @@ async function publishPost(
       }),
       signal: AbortSignal.timeout(20000),
     });
+    let res = await send(status);
+    let note: string | undefined;
+    if (!res.ok && status === "publish" && res.status === 403) {
+      const text = await res.text();
+      if (!text.includes("rest_cannot_publish")) {
+        return { error: `WP publish ${res.status} — ${text.slice(0, 200)}` };
+      }
+      // This WP user can't publish (e.g. Contributor role). Save it for
+      // review instead of losing the translation.
+      res = await send("pending");
+      note = "Saved as Pending Review: this WordPress user isn't allowed to publish. Change its role to Editor.";
+    }
     if (!res.ok) {
       const text = await res.text();
       return { error: `WP publish ${res.status} — ${text.slice(0, 200)}` };
@@ -346,7 +360,8 @@ async function publishPost(
     return {
       postId: post.id,
       editUrl: `${siteUrl}/wp-admin/post.php?post=${post.id}&action=edit`,
-      postUrl: post.link,
+      postUrl: note ? undefined : post.link,
+      note,
     };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "WP publish failed" };
@@ -375,6 +390,10 @@ export async function POST(req: NextRequest) {
   const dateGmt = backdateDays > 0
     ? new Date(Date.now() - backdateDays * 86400_000).toISOString().slice(0, 19)
     : undefined;
+
+  const only = body.only && typeof body.only === "object" ? body.only : {};
+  const wants = (url: string, lang: "dv" | "en") =>
+    !Array.isArray(only[url]) || only[url].includes(lang);
 
   if (urls.length === 0) {
     return new Response(JSON.stringify({ error: "Provide at least one URL" }), { status: 400 });
@@ -490,7 +509,7 @@ export async function POST(req: NextRequest) {
           };
 
           // Dhivehi
-          if (wpDV) {
+          if (wpDV && wants(article.url, "dv")) {
             try {
               send(controller, "step", { index: i, step: "translating-dv", url: article.url });
               const dv = await generateForLanguage(model, article, "dv");
@@ -511,6 +530,7 @@ export async function POST(req: NextRequest) {
                 editUrl: pub.editUrl,
                 postUrl: pub.postUrl,
                 error: pub.error,
+                note: pub.note,
               };
             } catch (err) {
               record.dv = {
@@ -522,7 +542,7 @@ export async function POST(req: NextRequest) {
           }
 
           // English
-          if (wpEN) {
+          if (wpEN && wants(article.url, "en")) {
             try {
               send(controller, "step", { index: i, step: "paraphrasing-en", url: article.url });
               const en = await generateForLanguage(model, article, "en");
@@ -540,6 +560,7 @@ export async function POST(req: NextRequest) {
                 editUrl: pub.editUrl,
                 postUrl: pub.postUrl,
                 error: pub.error,
+                note: pub.note,
               };
             } catch (err) {
               record.en = {
