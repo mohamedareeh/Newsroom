@@ -29,6 +29,13 @@ interface MultiPublishRequest {
 // Category every pipeline post is filed under, on BOTH the Dhivehi (dhen.mv)
 // and English (maldivesinsight.com) sites. Created on the site if missing.
 const PIPELINE_CATEGORY = "World News";
+// Existing category slugs to use per site. dhen.mv's world news section is
+// https://dhen.mv/world, so match that category by slug instead of creating
+// a new English "World News" category there.
+const PIPELINE_CATEGORY_SLUG: Record<"dv" | "en", string | undefined> = {
+  dv: "world",
+  en: undefined,
+};
 
 interface ScrapedArticle {
   url: string;
@@ -276,8 +283,23 @@ async function resolveTagIds(siteUrl: string, wp: WordPressCreds, tagNames: stri
 async function resolveCategoryId(
   siteUrl: string,
   wp: WordPressCreds,
-  name: string
+  name: string,
+  slug?: string
 ): Promise<number | undefined> {
+  if (slug) {
+    try {
+      const res = await fetch(
+        `${siteUrl}/wp-json/wp/v2/categories?slug=${encodeURIComponent(slug)}`,
+        { headers: { Authorization: wpAuthHeader(wp) }, signal: AbortSignal.timeout(5000) }
+      );
+      if (res.ok) {
+        const found = await res.json();
+        if (Array.isArray(found) && found[0]?.id) return found[0].id;
+      }
+    } catch {
+      // fall back to name lookup below
+    }
+  }
   const n = name.trim();
   if (!n) return undefined;
   try {
@@ -312,14 +334,16 @@ async function publishPost(
   payload: { title: string; content: string; customFields?: Record<string, string>; tags?: string[] },
   status: "draft" | "publish",
   /** Optional GMT publish date, "YYYY-MM-DDTHH:mm:ss". Used for backdating. */
-  dateGmt?: string
+  dateGmt?: string,
+  /** Existing category slug to file under (e.g. "world" on dhen.mv). */
+  categorySlug?: string
 ): Promise<{ postId?: number; editUrl?: string; postUrl?: string; error?: string; note?: string }> {
   const siteUrl = wp.siteUrl.replace(/\/+$/, "");
   try {
     const tagIds = payload.tags?.length ? await resolveTagIds(siteUrl, wp, payload.tags) : [];
     // Every pipeline post lands in "World News" on both sites — created on the
     // site if it doesn't exist yet.
-    const categoryId = await resolveCategoryId(siteUrl, wp, PIPELINE_CATEGORY);
+    const categoryId = await resolveCategoryId(siteUrl, wp, PIPELINE_CATEGORY, categorySlug);
     const meta: Record<string, string> = {};
     if (payload.customFields) {
       for (const [k, v] of Object.entries(payload.customFields)) if (v) meta[k] = v;
@@ -522,7 +546,7 @@ export async function POST(req: NextRequest) {
                   ...(dv.social ? { article_social_text: dv.social } : {}),
                 },
                 tags: dv.tags,
-              }, status, dateGmt);
+              }, status, dateGmt, PIPELINE_CATEGORY_SLUG.dv);
               record.dv = {
                 title: dv.title,
                 site: wpDV.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
@@ -552,7 +576,7 @@ export async function POST(req: NextRequest) {
                 content: en.content,
                 customFields: en.social ? { article_social_text: en.social } : undefined,
                 tags: en.tags,
-              }, status, dateGmt);
+              }, status, dateGmt, PIPELINE_CATEGORY_SLUG.en);
               record.en = {
                 title: en.title,
                 site: wpEN.siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
